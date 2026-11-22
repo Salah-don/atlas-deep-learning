@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Atlas DL">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style>
+<title>Atlas CNN · AE · RNN · LSTM</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&family=STIX+Two+Text:ital@0;1&display=swap">
+<style>
+/* Layout: sidebar de navigation fixe + colonne de lecture ~68ch. Bleu = passe avant (forward), ambre = passe arrière (gradients). */
+:root{
+  --bg:#f6f8fb; --surface:#ffffff; --sunken:#eef2f7; --fg:#18202c; --muted:#5a6578; --line:#d9e0ea;
+  --fwd:#2453d6; --fwd-soft:#e3eafc; --bwd:#c26a00; --bwd-soft:#fbefdc; --ok:#1d7f4e; --ok-soft:#e1f3e9; --bad:#b4232a; --bad-soft:#fbe5e6;
+  --font-display:"Space Grotesk",system-ui,sans-serif; --font-body:"Inter",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Consolas,monospace; --font-math:"STIX Two Text","Cambria Math",Georgia,serif;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0f141c; --surface:#161d28; --sunken:#1c2533; --fg:#e4e9f1; --muted:#9aa6b8; --line:#2b3646;
+  --fwd:#7ea0ff; --fwd-soft:#1d2a4a; --bwd:#f0a443; --bwd-soft:#3a2a12; --ok:#5fd396; --ok-soft:#163525; --bad:#ff7b80; --bad-soft:#3d1a1d; color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0f141c; --surface:#161d28; --sunken:#1c2533; --fg:#e4e9f1; --muted:#9aa6b8; --line:#2b3646;
+  --fwd:#7ea0ff; --fwd-soft:#1d2a4a; --bwd:#f0a443; --bwd-soft:#3a2a12; --ok:#5fd396; --ok-soft:#163525; --bad:#ff7b80; --bad-soft:#3d1a1d; color-scheme:dark }
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:16px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.65}
+a{color:var(--fwd)}
+:focus-visible{outline:2px solid var(--fwd);outline-offset:2px}
+.shell{display:grid;grid-template-columns:270px minmax(0,1fr);max-width:1240px;margin:0 auto}
+nav.side{position:sticky;top:0;height:100vh;overflow-y:auto;padding:28px 18px 40px 24px;border-right:1px solid var(--line)}
+nav.side .brand{font-family:var(--font-display);font-weight:700;font-size:20px;letter-spacing:-.01em;margin-bottom:4px}
+nav.side .sub{color:var(--muted);font-size:13px;margin-bottom:22px}
+nav.side ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+nav.side li.grp{font-family:var(--font-display);font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:16px 0 4px}
+nav.side a{display:block;padding:5px 10px;border-radius:6px;text-decoration:none;color:var(--fg);font-size:14px}
+nav.side a:hover{background:var(--sunken)}
+nav.side a.on{background:var(--fwd-soft);color:var(--fwd);font-weight:600}
+main{padding-block:40px 120px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));min-width:0}
+.col{max-width:780px;margin:0 auto}
+@media (max-width:900px){
+  .shell{grid-template-columns:1fr}
+  nav.side{position:sticky;top:env(safe-area-inset-top,0px);height:auto;z-index:5;background:var(--bg);border-right:0;border-bottom:1px solid var(--line);padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--bg)}
+  nav.side .sub, nav.side li.grp{display:none}
+  nav.side .brand{font-size:16px;margin:0 0 6px}
+  nav.side ol{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:4px}
+  nav.side a{white-space:nowrap;font-size:13px;background:var(--sunken)}
+  html{scroll-padding-top:110px}
+}
+h1,h2,h3,h4{font-family:var(--font-display);line-height:1.2;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:clamp(32px,5vw,46px);margin:0 0 12px}
+h2{font-size:30px;margin:72px 0 8px;padding-top:24px;border-top:1px solid var(--line)}
+h3{font-size:21px;margin:40px 0 8px}
+h4{font-size:16px;margin:24px 0 6px}
+.kicker{font-family:var(--font-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--fwd)}
+.lead{font-size:18px;color:var(--muted);max-width:62ch}
+p,li{max-width:68ch}
+.m{font-family:var(--font-math);font-style:italic;font-size:1.08em;white-space:nowrap}
+.m sub,.m sup{font-size:.72em}
+.eq{font-family:var(--font-math);font-size:19px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:14px 0;overflow-x:auto;white-space:nowrap}
+.eq.b{border-color:var(--bwd);background:var(--bwd-soft)}
+.eq.f{border-color:var(--fwd);background:var(--fwd-soft)}
+.eq .note{font-family:var(--font-body);font-style:normal;font-size:13px;color:var(--muted);margin-left:14px;white-space:normal}
+.eq sub,.eq sup{font-size:.7em}
+code,.mono{font-family:var(--font-mono);font-size:.9em}
+pre{font-family:var(--font-mono);font-size:13.5px;background:var(--sunken);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;line-height:1.55}
+.tbl{overflow-x:auto;margin:14px 0}
+table{border-collapse:collapse;font-size:14.5px;min-width:100%}
+th,td{border-bottom:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{font-family:var(--font-display);font-weight:600;background:var(--sunken)}
+td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--font-mono);font-size:13px}
+.box{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:16px 18px;margin:18px 0}
+.box > :first-child{margin-top:0}.box > :last-child{margin-bottom:0}
+.box.key{border-left:4px solid var(--fwd)}
+.box.warn{border-left:4px solid var(--bad);background:var(--bad-soft)}
+.box.back{border-left:4px solid var(--bwd)}
+.box .t{font-family:var(--font-display);font-weight:600;margin-bottom:6px;display:block}
+.steps{counter-reset:s;list-style:none;padding:0;display:flex;flex-direction:column;gap:10px}
+.steps > li{counter-increment:s;position:relative;padding-left:42px}
+.steps > li::before{content:counter(s);position:absolute;left:0;top:1px;width:28px;height:28px;border-radius:50%;background:var(--fwd-soft);color:var(--fwd);font-family:var(--font-display);font-weight:700;display:grid;place-items:center;font-size:14px}
+.steps.bk > li::before{background:var(--bwd-soft);color:var(--bwd)}
+figure{margin:20px 0}
+.svgwrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px}
+figcaption{font-size:13px;color:var(--muted);margin-top:6px}
+svg text{font-family:var(--font-body);fill:var(--fg)}
+svg .mt{font-family:var(--font-math);font-style:italic}
+svg .mute{fill:var(--muted)}
+.sv-box{fill:var(--surface);stroke:var(--line);stroke-width:1.5}
+.sv-f{fill:var(--fwd-soft);stroke:var(--fwd);stroke-width:1.5}
+.sv-b{fill:var(--bwd-soft);stroke:var(--bwd);stroke-width:1.5}
+.sv-line{stroke:var(--fg);stroke-width:1.5;fill:none}
+.sv-fl{stroke:var(--fwd);stroke-width:2;fill:none}
+.sv-bl{stroke:var(--bwd);stroke-width:2;fill:none;stroke-dasharray:6 4}
+.grids{display:flex;flex-wrap:wrap;gap:22px;align-items:flex-start;margin:14px 0}
+.grid{display:inline-grid;gap:3px}
+.grid .c{width:38px;height:38px;display:grid;place-items:center;font-family:var(--font-mono);font-size:14px;background:var(--surface);border:1px solid var(--line);border-radius:4px;font-variant-numeric:tabular-nums;color:var(--fg);padding:0}
+.grid .c.pad{color:var(--muted);background:var(--sunken)}
+.grid .c.win{background:var(--fwd-soft);border-color:var(--fwd)}
+.grid .c.ctr{outline:2px solid var(--fwd)}
+.grid .c.out{background:var(--fwd-soft);border-color:var(--fwd);font-weight:600}
+.grid .c.neg{color:var(--bad)}
+.grid .c.empty{color:var(--muted)}
+.grid .c.gbw{background:var(--bwd-soft);border-color:var(--bwd);color:var(--bwd);font-weight:600}
+.grid button.c{cursor:pointer;font-family:var(--font-mono)}
+.glabel{font-size:12px;color:var(--muted);margin-bottom:6px;font-family:var(--font-mono)}
+.ctrl{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:10px 0}
+button.btn{font:inherit;font-size:14px;padding:6px 14px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--fg);cursor:pointer}
+button.btn:hover{border-color:var(--fwd)}
+button.btn.pri{background:var(--fwd);color:var(--bg);border-color:var(--fwd)}
+.calc{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin:10px 0}
+.calc label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:3px}
+.calc input,.calc select{font:inherit;font-family:var(--font-mono);font-size:14px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg);width:100%}
+.result{font-family:var(--font-mono);font-size:14px;background:var(--sunken);border-radius:8px;padding:12px 14px;line-height:1.9;overflow-x:auto}
+.result b{color:var(--fwd)}
+.calcline{font-family:var(--font-mono);font-size:13px;background:var(--sunken);border-radius:6px;padding:8px 12px;overflow-x:auto;white-space:nowrap}
+.mat{display:inline-grid;vertical-align:middle;border-left:1.5px solid var(--fg);border-right:1.5px solid var(--fg);border-radius:4px;padding:1px 5px;gap:0 10px;font-family:var(--font-mono);font-style:normal;font-size:13px;margin:0 3px;font-variant-numeric:tabular-nums;line-height:1.5}
+.mat span{text-align:right}
+.row{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:6px 0}
+.dimchip{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;font-family:var(--font-mono);font-size:14px;margin:2px 0}
+.dimchip span{padding:4px 10px;border-right:1px solid var(--line);display:flex;flex-direction:column;align-items:center;line-height:1.2}
+.dimchip span:last-child{border-right:0}
+.dimchip small{font-family:var(--font-body);font-size:10.5px;color:var(--muted)}
+.dimchip .n{background:var(--sunken)} .dimchip .c1{background:var(--fwd-soft)} .dimchip .h1{background:var(--bwd-soft)}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:12px 0}
+.flow .st{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13.5px}
+.flow .st b{display:block;font-family:var(--font-display);font-size:13px}
+.flow .st span{font-family:var(--font-mono);font-size:12px;color:var(--muted)}
+.flow .ar{color:var(--muted)}
+.q{border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin:12px 0;background:var(--surface)}
+.q p{margin:0 0 8px;font-weight:500}
+.q label{display:flex;gap:8px;align-items:flex-start;padding:4px 6px;border-radius:6px;cursor:pointer;font-size:15px}
+.q label:hover{background:var(--sunken)}
+.q label.good{background:var(--ok-soft);color:var(--ok)}
+.q label.wrong{background:var(--bad-soft);color:var(--bad)}
+.q .why{font-size:14px;color:var(--muted);margin-top:6px}
+.score{font-family:var(--font-display);font-weight:600}
+.map{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:22px 0}
+.map a{display:block;text-decoration:none;color:var(--fg);border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:var(--surface)}
+.map a:hover{border-color:var(--fwd)}
+.map b{font-family:var(--font-display);display:block}
+.map span{font-size:13px;color:var(--muted)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--muted);margin:8px 0}
+.legend i{display:inline-block;width:22px;height:4px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.small{font-size:14px;color:var(--muted)}
+</style>
+
+</head>
+<body>
+<div class="shell">
+<nav class="side" aria-label="Sommaire">
+  <div class="brand">Atlas CNN · AE · RNN · LSTM</div>
+  <div class="sub">D'après les chapitres 2 et 3 du cours (Prof. Y. Chibani)</div>
+  <ol id="toc">
+    <li class="grp">Départ</li>
+    <li><a href="#carte">Carte du parcours</a></li>
+    <li><a href="#bases">0 · Les bases : neurone, MLP</a></li>
+    <li><a href="#bp">1 · Backpropagation (MLP)</a></li>
+    <li class="grp">Spatial</li>
+    <li><a href="#cnn-avant">2 · CNN : avant l'entrée</a></li>
+    <li><a href="#cnn-dims">3 · Lire les dimensions</a></li>
+    <li><a href="#cnn-conv">4 · Convolution pas à pas</a></li>
+    <li><a href="#cnn-archi">5 · Architecture complète</a></li>
+    <li><a href="#cnn-bp">6 · Backprop dans un CNN</a></li>
+    <li><a href="#ae">7 · Autoencodeur (AE)</a></li>
+    <li class="grp">Séquentiel</li>
+    <li><a href="#rnn-avant">8 · RNN : avant l'entrée</a></li>
+    <li><a href="#rnn">9 · Cellule RNN</a></li>
+    <li><a href="#bptt">10 · BPTT (RNN)</a></li>
+    <li><a href="#lstm">11 · LSTM</a></li>
+    <li><a href="#lstm-bptt">12 · BPTT (LSTM)</a></li>
+    <li class="grp">Réviser</li>
+    <li><a href="#fiche">13 · Fiche de révision</a></li>
+    <li><a href="#quiz">14 · Quiz</a></li>
+  </ol>
+</nav>
+
+<main><div class="col">
+
+<!-- ============ HERO ============ -->
+<section id="carte">
+  <div class="kicker">Deep Learning · Chap. 2 & 3</div>
+  <h1>Du pixel au gradient</h1>
+  <p class="lead">Ce site reprend le cours dans l'ordre logique : ce qui arrive <em>avant</em> le réseau, ce que veulent dire les dimensions, ce que fait chaque couche, puis comment les gradients remontent, à travers les couches (backprop) et à travers le temps (BPTT).</p>
+  <div class="legend"><span><i style="background:var(--fwd)"></i>passe avant (forward) : on calcule la prédiction</span><span><i style="background:var(--bwd)"></i>passe arrière (backward) : on calcule les gradients</span></div>
+  <div class="map">
+    <a href="#bases"><b>Bases</b><span>neurone, softmax, cross-entropy</span></a>
+    <a href="#bp"><b>Backprop</b><span>la règle δ, couche par couche</span></a>
+    <a href="#cnn-avant"><b>CNN</b><span>images, filtres, feature maps</span></a>
+    <a href="#ae"><b>Autoencodeur</b><span>encoder, code latent, decoder, MSE</span></a>
+    <a href="#rnn-avant"><b>RNN</b><span>séquences, état caché</span></a>
+    <a href="#bptt"><b>BPTT</b><span>exemple du cours recalculé</span></a>
+    <a href="#lstm"><b>LSTM</b><span>3 portes, 2 états</span></a>
+    <a href="#quiz"><b>Quiz</b><span>14 questions corrigées</span></a>
+  </div>
+  <div class="box key"><span class="t">Le fil rouge en une phrase</span>
+  Un CNN exploite les <b>structures locales</b> (pixels voisins), un RNN/LSTM exploite les <b>dépendances ordonnées</b> (ce qui vient avant). Pour une tâche de <b>classification</b>, on apprend des représentations qui séparent les classes (CNN) ; pour une tâche de <b>reconstruction</b>, des représentations qui préservent l'information (autoencodeur). Tous s'entraînent pareil : passe avant → perte → gradients par la règle de la chaîne → descente de gradient.</div>
+</section>
+
+<!-- ============ 0. BASES ============ -->
+<section id="bases">
+  <h2>0 · Les bases : neurone, MLP, softmax</h2>
+  <p>Tout le reste (CNN, AE, RNN, LSTM) se termine par ces briques. On utilise la notation du cours.</p>
+  <h3>Un neurone</h3>
+  <div class="eq f">u<sub>k</sub><sup>l</sup> = Σ<sub>i</sub> w<sub>ki</sub><sup>l</sup> x<sub>i</sub><sup>l−1</sup> + b<sub>k</sub><sup>l</sup> &nbsp;&nbsp;→&nbsp;&nbsp; x<sub>k</sub><sup>l</sup> = f(u<sub>k</sub><sup>l</sup>)<span class="note">u = potentiel « somatique » (avant activation), x = sortie après activation</span></div>
+  <ul>
+    <li><span class="m">w<sub>kc</sub><sup>l</sup></span> : poids entre le nœud <span class="m">c</span> de la couche <span class="m">l−1</span> et le nœud <span class="m">k</span> de la couche <span class="m">l</span>.</li>
+    <li><span class="m">f</span> : activation des couches cachées (sigmoïde, ReLU, tanh…). Elle apporte la non-linéarité.</li>
+  </ul>
+  <h3>MLP à une couche cachée (classifieur)</h3>
+  <figure><div class="svgwrap">
+  <svg viewBox="0 0 640 230" width="640" role="img" aria-label="MLP : entrées x, couche cachée K nœuds, sortie softmax M classes">
+    <text x="60" y="20" text-anchor="middle" class="mute" font-size="13">Entrée (n)</text>
+    <text x="300" y="20" text-anchor="middle" class="mute" font-size="13">Cachée (K) · f()</text>
+    <text x="540" y="20" text-anchor="middle" class="mute" font-size="13">Sortie (M) · softmax</text>
+    <g class="sv-fl" style="opacity:.45">
+      <path d="M78 60L282 50M78 60L282 115M78 60L282 180M78 115L282 50M78 115L282 115M78 115L282 180M78 180L282 50M78 180L282 115M78 180L282 180"/>
+      <path d="M318 50L522 60M318 50L522 115M318 50L522 180M318 115L522 60M318 115L522 115M318 115L522 180M318 180L522 60M318 180L522 115M318 180L522 180"/>
+    </g>
+    <g><circle cx="60" cy="60" r="18" class="sv-box"/><circle cx="60" cy="115" r="18" class="sv-box"/><circle cx="60" cy="180" r="18" class="sv-box"/>
+       <circle cx="300" cy="50" r="18" class="sv-f"/><circle cx="300" cy="115" r="18" class="sv-f"/><circle cx="300" cy="180" r="18" class="sv-f"/>
+       <circle cx="540" cy="60" r="18" class="sv-f"/><circle cx="540" cy="115" r="18" class="sv-f"/><circle cx="540" cy="180" r="18" class="sv-f"/></g>
+    <g class="mt" font-size="15" text-anchor="middle"><text x="60" y="65">x₁</text><text x="60" y="120">x<tspan font-size="10" dy="3">j</tspan></text><text x="60" y="185">x<tspan font-size="10" dy="3">n</tspan></text>
+      <text x="300" y="55">x¹₁</text><text x="300" y="120">x¹<tspan font-size="10" dy="3">k</tspan></text><text x="300" y="185">x¹<tspan font-size="10" dy="3">K</tspan></text>
+      <text x="540" y="65">p₁</text><text x="540" y="120">p<tspan font-size="10" dy="3">m</tspan></text><text x="540" y="185">p<tspan font-size="10" dy="3">M</tspan></text></g>
+    <text x="180" y="215" text-anchor="middle" class="mt" font-size="14">(W¹, b¹) : K×n</text>
+    <text x="420" y="215" text-anchor="middle" class="mt" font-size="14">(W², b²) : M×K</text>
+    <text x="566" y="120" font-size="13" class="mute">→ classe</text>
+  </svg></div>
+  <figcaption>n = nombre de caractéristiques en entrée, K = nombre de neurones cachés, M = nombre de classes.</figcaption></figure>
+  <div class="eq f">p<sub>m</sub> = s(u<sub>m</sub><sup>2</sup>) = e<sup>u<sub>m</sub><sup>2</sup></sup> / Σ<sub>r=1..M</sub> e<sup>u<sub>r</sub><sup>2</sup></sup><span class="note">softmax : transforme M scores en M probabilités qui somment à 1</span></div>
+  <h3>Sortie désirée et perte</h3>
+  <p>La sortie désirée <span class="m">y</span> est un vecteur <b>one-hot</b> de taille <span class="m">M</span> : pour 3 classes, « classe 2 » s'écrit <span class="mono">[0, 1, 0]</span>. La perte de classification du cours est la <b>cross-entropy</b> :</p>
+  <div class="eq f">L(y, p) = − Σ<sub>m=1..M</sub> y<sub>m</sub> log(p<sub>m</sub>)<span class="note">avec un one-hot, seule la classe vraie compte : L = −log(p<sub>vraie</sub>)</span></div>
+  <div class="box key"><span class="t">Le résultat à retenir par cœur</span>Avec softmax + cross-entropy, le gradient de la perte par rapport aux scores de sortie est simplement
+  <div class="eq b" style="margin-bottom:0">δ<sub>m</sub> = ∂L/∂u<sub>m</sub><sup>2</sup> = p<sub>m</sub> − y<sub>m</sub><span class="note">« prédit moins voulu ». On le retrouve dans le MLP, le CNN, le RNN et le LSTM.</span></div></div>
+</section>
+
+<!-- ============ 1. BACKPROP ============ -->
+<section id="bp">
+  <h2>1 · Backpropagation (MLP)</h2>
+  <p class="lead">But : trouver comment chaque poids influence la perte (<span class="m">∂L/∂w</span>) pour le corriger dans le sens qui la fait baisser.</p>
+  <div class="eq b">w(t+1) = w(t) − μ · ∂L/∂w<span class="note">μ = taux d'apprentissage. Gradient &gt; 0 → on diminue w ; gradient &lt; 0 → on augmente w.</span></div>
+  <h3>Les étapes du cours</h3>
+  <ol class="steps">
+    <li><b>Initialiser</b> (W¹, b¹) et (W², b²) aléatoirement (petites valeurs).</li>
+    <li><b>Passe avant</b> : <span class="m">u<sub>k</sub><sup>1</sup> = Σ<sub>j</sub> w<sub>kj</sub><sup>1</sup> x<sub>j</sub><sup>0</sup> + b<sub>k</sub><sup>1</sup></span>, <span class="m">x<sub>k</sub><sup>1</sup> = f(u<sub>k</sub><sup>1</sup>)</span>, puis <span class="m">u<sub>m</sub><sup>2</sup></span> et <span class="m">p<sub>m</sub> = s(u<sub>m</sub><sup>2</sup>)</span>.</li>
+    <li><b>Erreur de sortie</b> : <span class="m">δ<sub>m</sub> = p<sub>m</sub> − y<sub>m</sub></span>.</li>
+    <li><b>Gradients de la couche de sortie</b> : <span class="m">∂L/∂w<sub>mk</sub><sup>2</sup> = δ<sub>m</sub> x<sub>k</sub><sup>1</sup></span> et <span class="m">∂L/∂b<sub>m</sub><sup>2</sup> = δ<sub>m</sub></span>.</li>
+    <li><b>Erreur de la couche cachée</b> (le cœur de la backprop) : <span class="m">δ<sub>k</sub><sup>1</sup> = f′(u<sub>k</sub><sup>1</sup>) Σ<sub>m</sub> δ<sub>m</sub> w<sub>mk</sub><sup>2</sup></span>.</li>
+    <li><b>Gradients de la couche cachée</b> : <span class="m">∂L/∂w<sub>kj</sub><sup>1</sup> = δ<sub>k</sub><sup>1</sup> x<sub>j</sub><sup>0</sup></span>, <span class="m">∂L/∂b<sub>k</sub><sup>1</sup> = δ<sub>k</sub><sup>1</sup></span>.</li>
+    <li><b>Mise à jour</b> de tous les paramètres, puis échantillon suivant ; on répète sur toutes les époques.</li>
+  </ol>
+  <h3>D'où vient δ<sub>k</sub><sup>1</sup> ? (démonstration)</h3>
+  <p>Le neurone caché <span class="m">k</span> alimente <b>toutes</b> les sorties <span class="m">m</span>. Par la règle de la chaîne, on somme les chemins :</p>
+  <div class="eq b">δ<sub>k</sub><sup>1</sup> = ∂L/∂u<sub>k</sub><sup>1</sup> = Σ<sub>m</sub> (∂L/∂u<sub>m</sub><sup>2</sup>)(∂u<sub>m</sub><sup>2</sup>/∂u<sub>k</sub><sup>1</sup>) = Σ<sub>m</sub> δ<sub>m</sub> · ∂u<sub>m</sub><sup>2</sup>/∂u<sub>k</sub><sup>1</sup></div>
+  <p>Or <span class="m">u<sub>m</sub><sup>2</sup> = Σ<sub>k</sub> w<sub>mk</sub><sup>2</sup> f(u<sub>k</sub><sup>1</sup>) + b<sub>m</sub><sup>2</sup></span>, donc seul le terme <span class="m">k</span> dépend de <span class="m">u<sub>k</sub><sup>1</sup></span> :</p>
+  <div class="eq b">∂u<sub>m</sub><sup>2</sup>/∂u<sub>k</sub><sup>1</sup> = w<sub>mk</sub><sup>2</sup> f′(u<sub>k</sub><sup>1</sup>) &nbsp;&nbsp;⇒&nbsp;&nbsp; δ<sub>k</sub><sup>1</sup> = f′(u<sub>k</sub><sup>1</sup>) Σ<sub>m</sub> δ<sub>m</sub> w<sub>mk</sub><sup>2</sup></div>
+  <p>En mots : l'erreur d'un neurone caché = <b>somme des erreurs en aval, pondérées par les poids qui les relient</b>, multipliée par la pente de son activation. Les erreurs voyagent « à l'envers » par les mêmes poids que le signal.</p>
+  <div class="box"><span class="t">Dérivées d'activation à connaître</span>
+  sigmoïde σ : <span class="m">σ′ = σ(1−σ)</span> · tanh : <span class="m">tanh′ = 1 − tanh²</span> · ReLU : <span class="m">1</span> si <span class="m">u&gt;0</span>, sinon <span class="m">0</span>.</div>
+  <h3>Exemple chiffré (calculé en direct)</h3>
+  <p>n = 2 entrées, K = 2 neurones cachés (sigmoïde), M = 2 classes, μ = 0,5, biais initiaux nuls. Modifie l'entrée pour voir tout se recalculer.</p>
+  <div class="calc">
+    <label for="mx1">x₁<input id="mx1" type="number" step="0.1" value="1"></label>
+    <label for="mx2">x₂<input id="mx2" type="number" step="0.1" value="0.5"></label>
+    <label for="my">classe vraie<select id="my"><option value="0">classe 1 → y=[1,0]</option><option value="1">classe 2 → y=[0,1]</option></select></label>
+  </div>
+  <div id="mlp-out" class="result"></div>
+  <h3>Courbes de perte</h3>
+  <ul>
+    <li><b>Bon ajustement</b> : entraînement et validation descendent ensemble et se stabilisent proches.</li>
+    <li><b>Sous-apprentissage</b> : les deux restent hautes ; modèle trop simple ou pas assez entraîné.</li>
+    <li><b>Sur-apprentissage</b> : l'entraînement descend, la validation remonte ; ajouter Dropout, des données, ou arrêter plus tôt.</li>
+  </ul>
+  <p class="small">Paramètres qui influencent la convergence (cours) : architecture (nombre de couches et de nœuds), activation, taux d'apprentissage et momentum, optimiseur (SGD, RMSProp, Adam), nombre d'époques.</p>
+</section>
+
+<!-- ============ 2. CNN AVANT ============ -->
+<section id="cnn-avant">
+  <h2>2 · CNN : ce qui se passe avant l'entrée</h2>
+  <p class="lead">Un CNN ne reçoit jamais « une photo ». Il reçoit un <b>tenseur de nombres</b> de taille fixe. Tout le travail avant l'entrée sert à fabriquer ce tenseur.</p>
+  <h3>Approche manuelle vs automatique</h3>
+  <div class="tbl"><table>
+    <tr><th>Approche</th><th>Extraction des caractéristiques</th><th>Avantage</th><th>Limite</th></tr>
+    <tr><td>Manuelle (handcrafted)</td><td>HOG, LBP, SIFT… puis classifieur MLP</td><td>on cible les caractéristiques voulues</td><td>difficile d'extraire <em>toutes</em> les caractéristiques utiles</td></tr>
+    <tr><td>Automatique (CNN)</td><td>des filtres de convolution <b>appris</b> pendant l'entraînement</td><td>extraction complète avec plusieurs filtres (« feature learning »)</td><td>beaucoup de données et de calcul</td></tr>
+  </table></div>
+  <h3>Le pipeline de préparation d'une image</h3>
+  <div class="flow">
+    <div class="st"><b>Image brute</b><span>JPEG 1920×1080, RGB</span></div><span class="ar">→</span>
+    <div class="st"><b>Redimensionner</b><span>taille fixe, ex. 224×224</span></div><span class="ar">→</span>
+    <div class="st"><b>Canaux</b><span>gris = 1, RGB = 3</span></div><span class="ar">→</span>
+    <div class="st"><b>Normaliser</b><span>/255 puis (x−μ)/σ</span></div><span class="ar">→</span>
+    <div class="st"><b>Tenseur</b><span>C×H×W</span></div><span class="ar">→</span>
+    <div class="st"><b>Batch</b><span>N×C×H×W</span></div>
+  </div>
+  <ol class="steps">
+    <li><b>Pixels</b> : une image en niveaux de gris est une matrice de nombres (0 = noir, 255 = blanc). Une image couleur, c'est trois matrices superposées (R, G, B).</li>
+    <li><b>Taille fixe</b> : les couches entièrement connectées à la fin ont un nombre d'entrées fixe, donc toutes les images doivent avoir la même taille (hyperparamètre « taille des images d'entrée » du cours).</li>
+    <li><b>Normalisation</b> : ramener les pixels vers [0,1] ou vers une moyenne 0 et une variance 1. Les gradients sont plus stables et la convergence plus rapide.</li>
+    <li><b>Batch</b> : on empile N images pour les traiter ensemble (c'est aussi sur ce batch que travaille la Batch Normalization).</li>
+    <li><b>Étiquette</b> : chaque image a sa classe, encodée en one-hot <span class="m">y</span> de taille M pour la cross-entropy.</li>
+  </ol>
+  <div class="box"><span class="t">Et pour un signal 1D (CNN 1D) ?</span>
+  Le cours impose une contrainte : les signaux doivent avoir <b>la même durée</b>, ou bien on les <b>découpe en trames</b> (fenêtres) de même longueur. L'entrée devient alors <span class="mono">N × C × L</span> : C = nombre de voies (capteurs), L = nombre d'échantillons par trame. Les filtres sont 1D (ex. taille 5) et glissent le long du temps.</div>
+</section>
+
+<!-- ============ 3. DIMENSIONS ============ -->
+<section id="cnn-dims">
+  <h2>3 · Lire les dimensions (c'est quoi « 4×4 » ?)</h2>
+  <p class="lead">Quand on écrit une taille, chaque nombre a un rôle précis. L'erreur classique, c'est de les confondre.</p>
+  <h3>« Image 4×4 »</h3>
+  <p>Le <b>premier 4</b> est la <b>hauteur H</b> (le nombre de <b>lignes</b> de pixels), le <b>second 4</b> est la <b>largeur W</b> (le nombre de <b>colonnes</b>). Donc 16 pixels en tout. Le pixel en ligne <span class="m">i</span>, colonne <span class="m">j</span> se note <span class="m">I(i, j)</span>. C'est l'image d'entrée du cours :</p>
+  <div class="grids">
+    <div><div class="glabel">← W = 4 colonnes → ; ↓ H = 4 lignes</div><div class="grid" id="g-input" style="grid-template-columns:repeat(4,38px)"></div></div>
+    <div style="max-width:340px;min-width:0">
+      <p style="margin-top:0">Une image <b>3×32×32</b> (notation PyTorch) se lit <b>C × H × W</b> : 3 canaux (R, G, B), chacun étant une matrice de 32 lignes × 32 colonnes.</p>
+      <p>Une image notée <b>224×224×3</b> (notation Keras/TensorFlow, ou dans les articles comme AlexNet) se lit <b>H × W × C</b>. Même contenu, ordre différent.</p>
+    </div>
+  </div>
+  <h3>Toutes les tailles qu'on rencontre dans un CNN</h3>
+  <div class="tbl"><table>
+    <tr><th>Objet</th><th>Forme</th><th>Ce que veut dire chaque nombre</th></tr>
+    <tr><td>Batch d'images (entrée)</td><td><span class="dimchip"><span class="n">N<small>batch</small></span><span class="c1">C<small>canaux</small></span><span class="h1">H<small>lignes</small></span><span class="h1">W<small>colonnes</small></span></span></td><td>ex. 64×3×224×224 : 64 images RGB de 224×224</td></tr>
+    <tr><td>Un filtre (kernel)</td><td class="mono">C<sub>in</sub> × k × k</td><td>3×3 = fenêtre de 3 lignes × 3 colonnes. Il a <b>la profondeur de l'entrée</b> : sur une image RGB, un filtre « 3×3 » contient en réalité 3×3×3 = 27 poids (+1 biais).</td></tr>
+    <tr><td>Une couche de convolution</td><td class="mono">C<sub>out</sub> × C<sub>in</sub> × k × k</td><td>C<sub>out</sub> = nombre de filtres = nombre de feature maps produites</td></tr>
+    <tr><td>Sortie de convolution</td><td class="mono">N × C<sub>out</sub> × H′ × W′</td><td>une feature map par filtre ; H′, W′ dépendent du padding et du stride</td></tr>
+    <tr><td>Après pooling 2×2</td><td class="mono">N × C × H/2 × W/2</td><td>le pooling réduit H et W, jamais le nombre de canaux</td></tr>
+    <tr><td>Après Flatten</td><td class="mono">N × (C·H·W)</td><td>chaque image devient un vecteur <span class="m">x</span> de taille n = C·H·W</td></tr>
+    <tr><td>Sortie (softmax)</td><td class="mono">N × M</td><td>M probabilités par image, une par classe</td></tr>
+  </table></div>
+  <h3>La formule de taille de sortie</h3>
+  <div class="eq f">H′ = ⌊(H − k + 2P) / S⌋ + 1<span class="note">k = taille du filtre, P = padding (zéros ajoutés sur chaque bord), S = stride (pas de glissement). Même formule pour W′ et pour le pooling.</span></div>
+  <p>Avec l'exemple du cours : H = 4, k = 3, P = 1, S = 1 donne <span class="m">(4 − 3 + 2)/1 + 1 = 4</span>. C'est pour ça que le cours ajoute un bord de zéros : <b>le padding préserve la taille</b>. Sans padding (P = 0), on obtiendrait 2×2.</p>
+  <h4>Calculateur de couche</h4>
+  <div class="calc">
+    <label for="cH">H (lignes)<input id="cH" type="number" min="1" value="28"></label>
+    <label for="cW">W (colonnes)<input id="cW" type="number" min="1" value="28"></label>
+    <label for="cC">C_in (canaux)<input id="cC" type="number" min="1" value="1"></label>
+    <label for="cK">filtre k<input id="cK" type="number" min="1" value="3"></label>
+    <label for="cP">padding P<input id="cP" type="number" min="0" value="1"></label>
+    <label for="cS">stride S<input id="cS" type="number" min="1" value="1"></label>
+    <label for="cF">nb filtres C_out<input id="cF" type="number" min="1" value="8"></label>
+    <label for="cPool">pooling ensuite<select id="cPool"><option value="2">2×2 (stride 2)</option><option value="0">aucun</option><option value="3">3×3 (stride 3)</option></select></label>
+  </div>
+  <div id="conv-calc" class="result"></div>
+</section>
+
+<!-- ============ 4. CONV PAS À PAS ============ -->
+<section id="cnn-conv">
+  <h2>4 · Convolution, ReLU et pooling pas à pas</h2>
+  <p class="lead">L'exemple exact du cours : image 4×4, padding de zéros, filtre laplacien 3×3. Avance case par case.</p>
+  <ol class="steps">
+    <li><b>Initialiser</b> : ajouter le bord de zéros (6×6) et préparer la feature map 4×4 vide.</li>
+    <li><b>Définir le filtre</b> 3×3 (ici fixé ; dans un CNN ses 9 coefficients <span class="m">w<sub>1</sub>…w<sub>9</sub></span> sont <b>appris</b>).</li>
+    <li><b>Glisser</b> le filtre horizontalement puis verticalement ; à chaque position : multiplier case par case et additionner.</li>
+  </ol>
+  <div class="grids">
+    <div><div class="glabel">Image avec zero padding (6×6)</div><div class="grid" id="g-pad" style="grid-template-columns:repeat(6,38px)"></div></div>
+    <div><div class="glabel">Filtre 3×3</div><div class="grid" id="g-ker" style="grid-template-columns:repeat(3,38px)"></div></div>
+    <div><div class="glabel">Feature map (4×4) · clique une case</div><div class="grid" id="g-fm" style="grid-template-columns:repeat(4,38px)"></div></div>
+  </div>
+  <div class="ctrl">
+    <button class="btn" id="cv-prev" type="button">← Précédent</button>
+    <button class="btn pri" id="cv-next" type="button">Suivant →</button>
+    <button class="btn" id="cv-all" type="button">Tout calculer</button>
+    <button class="btn" id="cv-reset" type="button">Recommencer</button>
+  </div>
+  <div class="calcline" id="cv-line">Clique sur « Suivant » pour placer le filtre sur le premier pixel.</div>
+  <div class="box warn"><span class="t">Erreur dans les slides</span>Le cours affiche <b>−12</b> en ligne 2, colonne 1 de la feature map. Le bon calcul donne <b>+6</b> : <span class="mono">4×6 − 5 − 9 − 4 − 0 = 6</span> (centre 6 ; haut 5 ; droite 9 ; bas 4 ; gauche 0 de padding). Le calculateur ci-dessus montre la valeur correcte. Les 15 autres valeurs sont identiques au cours.</div>
+  <h3>Activation ReLU</h3>
+  <p>ReLU(u) = max(0, u) : les valeurs négatives de la feature map deviennent 0. On obtient la <b>rectified feature map</b>. Sa taille ne change pas.</p>
+  <div class="grids">
+    <div><div class="glabel">Feature map</div><div class="grid" id="g-fm2" style="grid-template-columns:repeat(4,38px)"></div></div>
+    <div><div class="glabel">Après ReLU</div><div class="grid" id="g-relu" style="grid-template-columns:repeat(4,38px)"></div></div>
+  </div>
+  <h3>Pooling 2×2 (stride 2)</h3>
+  <p>On découpe la carte en blocs 2×2 sans recouvrement et on garde le <b>max</b> (ou la <b>moyenne</b>). La taille passe de 4×4 à 2×2 : on réduit les dimensions spatiales en gardant l'information dominante.</p>
+  <div class="grids">
+    <div><div class="glabel">Max pooling</div><div class="grid" id="g-max" style="grid-template-columns:repeat(2,38px)"></div></div>
+    <div><div class="glabel">Average pooling</div><div class="grid" id="g-avg" style="grid-template-columns:repeat(2,46px)"></div></div>
+  </div>
+  <p class="small">Avec la valeur corrigée (+6), la moyenne du bloc haut-gauche vaut 29/4 = 7,25 (le cours trouve 6 parce qu'il part de −12 → 0). Les maxima ne changent pas.</p>
+</section>
+
+<!-- ============ 5. ARCHITECTURE ============ -->
+<section id="cnn-archi">
+  <h2>5 · Architecture complète d'un CNN</h2>
+  <figure><div class="svgwrap">
+  <svg viewBox="0 0 720 170" width="720" role="img" aria-label="Pipeline CNN : image, blocs FEB conv ReLU pool, flatten, couches FC, softmax">
+    <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--fwd)"/></marker></defs>
+    <rect x="10" y="45" width="70" height="70" class="sv-box"/><text x="45" y="85" text-anchor="middle" font-size="13">Image</text><text x="45" y="135" text-anchor="middle" font-size="11" class="mute">C×H×W</text>
+    <rect x="110" y="30" width="250" height="100" rx="10" class="sv-f" style="fill-opacity:.4"/>
+    <text x="235" y="22" text-anchor="middle" font-size="12" class="mute">FEB = Feature Extraction Block (répété N fois)</text>
+    <rect x="122" y="50" width="70" height="60" rx="6" class="sv-box"/><text x="157" y="85" text-anchor="middle" font-size="12">Conv</text>
+    <rect x="202" y="50" width="70" height="60" rx="6" class="sv-box"/><text x="237" y="85" text-anchor="middle" font-size="12">ReLU</text>
+    <rect x="282" y="50" width="70" height="60" rx="6" class="sv-box"/><text x="317" y="85" text-anchor="middle" font-size="12">Pool</text>
+    <rect x="390" y="50" width="60" height="60" rx="6" class="sv-box"/><text x="420" y="85" text-anchor="middle" font-size="12">Flatten</text>
+    <rect x="480" y="40" width="120" height="80" rx="8" class="sv-box"/><text x="540" y="78" text-anchor="middle" font-size="12">FC (MLP)</text><text x="540" y="96" text-anchor="middle" font-size="11" class="mute">+ Dropout</text>
+    <rect x="630" y="50" width="80" height="60" rx="6" class="sv-f"/><text x="670" y="85" text-anchor="middle" font-size="12">Softmax</text>
+    <text x="670" y="135" text-anchor="middle" font-size="11" class="mute">p₁…p_M</text>
+    <path d="M80 80H108M192 80H200M272 80H280M360 80H388M450 80H478M600 80H628" class="sv-fl" marker-end="url(#ar2)"/>
+  </svg></div>
+  <figcaption>Couches principales : convolution, activation, pooling, flatten. Couches optionnelles : Batch Normalization, Dropout.</figcaption></figure>
+  <div class="tbl"><table>
+    <tr><th>Couche</th><th>Rôle (cours)</th><th>Effet sur la forme</th><th>Paramètres appris</th></tr>
+    <tr><td>Convolution</td><td>extraire des caractéristiques locales → feature maps</td><td>C<sub>in</sub>×H×W → C<sub>out</sub>×H′×W′</td><td>C<sub>out</sub>·(C<sub>in</sub>·k·k) + C<sub>out</sub></td></tr>
+    <tr><td>Activation (ReLU…)</td><td>introduire la non-linéarité</td><td>inchangée</td><td>0</td></tr>
+    <tr><td>Pooling</td><td>réduire les dimensions spatiales</td><td>H, W divisés (ex. /2)</td><td>0</td></tr>
+    <tr><td>Batch Norm</td><td>stabiliser les distributions internes</td><td>inchangée</td><td>γ, β par canal/caractéristique</td></tr>
+    <tr><td>Flatten</td><td>multidimensionnel → vecteur</td><td>C×H×W → C·H·W</td><td>0</td></tr>
+    <tr><td>FC</td><td>classification</td><td>n → K → M</td><td>K·n + K, M·K + M</td></tr>
+    <tr><td>Dropout</td><td>désactiver des neurones au hasard (entraînement seulement)</td><td>inchangée</td><td>0</td></tr>
+  </table></div>
+  <h3>Suivre les formes sur un exemple complet</h3>
+  <p>Chiffres manuscrits 28×28 en niveaux de gris, 10 classes. Chaque ligne applique la formule de taille de sortie.</p>
+  <div class="tbl"><table>
+    <tr><th>Étape</th><th>Opération</th><th>Forme de sortie (C×H×W)</th><th class="num">Paramètres</th></tr>
+    <tr><td>Entrée</td><td>image normalisée</td><td class="mono">1×28×28</td><td class="num">0</td></tr>
+    <tr><td>FEB 1</td><td>Conv 8 filtres 3×3, P=1, S=1 → ReLU</td><td class="mono">8×28×28</td><td class="num">8·(1·9)+8 = 80</td></tr>
+    <tr><td></td><td>MaxPool 2×2</td><td class="mono">8×14×14</td><td class="num">0</td></tr>
+    <tr><td>FEB 2</td><td>Conv 16 filtres 3×3, P=1 → ReLU</td><td class="mono">16×14×14</td><td class="num">16·(8·9)+16 = 1 168</td></tr>
+    <tr><td></td><td>MaxPool 2×2</td><td class="mono">16×7×7</td><td class="num">0</td></tr>
+    <tr><td>Flatten</td><td>16·7·7</td><td class="mono">784</td><td class="num">0</td></tr>
+    <tr><td>FC 1</td><td>784 → 128, ReLU, Dropout</td><td class="mono">128</td><td class="num">784·128+128 = 100 480</td></tr>
+    <tr><td>FC 2</td><td>128 → 10, softmax</td><td class="mono">10</td><td class="num">128·10+10 = 1 290</td></tr>
+    <tr><th colspan="3">Total</th><th class="num">103 018</th></tr>
+  </table></div>
+  <p>Remarque : presque tous les paramètres sont dans la première couche FC. Les convolutions sont économes parce que <b>le même petit filtre est partagé sur toute l'image</b>.</p>
+<pre>import torch.nn as nn
+model = nn.Sequential(
+    nn.Conv2d(1, 8, kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool2d(2),   # 1×28×28 → 8×14×14
+    nn.Conv2d(8, 16, kernel_size=3, padding=1), nn.ReLU(), nn.MaxPool2d(2),  # → 16×7×7
+    nn.Flatten(),                                                           # → 784
+    nn.Linear(784, 128), nn.ReLU(), nn.Dropout(0.5),
+    nn.Linear(128, 10))       # softmax inclus dans nn.CrossEntropyLoss
+# x : (N, 1, 28, 28)  →  model(x) : (N, 10)</pre>
+  <h3>Batch Normalization</h3>
+  <p><b>Problème</b> : les transformations internes changent fortement la distribution des données, ce qui ralentit et déstabilise la convergence. <b>Solution</b> : normaliser chaque caractéristique <span class="m">k</span> sur le batch de taille <span class="m">B</span>, avant ou après l'activation.</p>
+  <div class="eq f">μ<sub>k</sub> = (1/B) Σ<sub>b</sub> x<sub>b,k</sub> &nbsp;&nbsp; σ<sub>k</sub><sup>2</sup> = (1/B) Σ<sub>b</sub> (x<sub>b,k</sub> − μ<sub>k</sub>)<sup>2</sup> &nbsp;&nbsp; x̂<sub>b,k</sub> = (x<sub>b,k</sub> − μ<sub>k</sub>) / √(σ<sub>k</sub><sup>2</sup> + ε) &nbsp;&nbsp; x̄<sub>b,k</sub> = γ<sub>k</sub> x̂<sub>b,k</sub> + β<sub>k</sub></div>
+  <p>γ<sub>k</sub> et β<sub>k</sub> sont appris. Le batch est une matrice <span class="mono">B × K</span> : on calcule une moyenne et une variance <b>par colonne</b> (par caractéristique), sur les B exemples. En inférence, on applique la forme affine équivalente <span class="m">x̄ = γx/√(σ²+ε) + (β − γμ/√(σ²+ε))</span>.</p>
+  <h3>Dropout</h3>
+  <p>Pendant l'entraînement, des neurones sont désactivés au hasard : leurs poids ne sont pas mis à jour à cette itération. Cela réduit le sur-apprentissage. <b>En évaluation (test), tous les neurones sont actifs.</b></p>
+  <h3>Hyperparamètres à régler (cours)</h3>
+  <ul>
+    <li>nombre de couches de convolution, nombre de filtres, taille du kernel (3×3, 5×5, 7×7), stride ;</li>
+    <li>taille de la fenêtre de pooling (2×2, 3×3…) ;</li>
+    <li>nombre de couches cachées FC et de nœuds, type d'activation ;</li>
+    <li>nombre d'époques, taux d'apprentissage, optimiseur (SGD, RMSProp, Adam) ;</li>
+    <li>taille des images d'entrée (canaux : RGB = 3, gris = 1 ; dimensions spatiales normalisées).</li>
+  </ul>
+  <h3>Architectures célèbres</h3>
+  <div class="tbl"><table>
+    <tr><th>Réseau</th><th>Année</th><th>Application</th><th>Entrée</th><th>Idée clé</th></tr>
+    <tr><td>LeNet-5</td><td>1998 (travaux depuis 1989)</td><td>reconnaissance de caractères</td><td class="mono">32×32×1</td><td>conv → pool → conv → pool → FC</td></tr>
+    <tr><td>AlexNet</td><td>2012</td><td>ImageNet, 1000 classes</td><td class="mono">227×227×3</td><td>ReLU, Dropout, GPU, filtres 11×11 puis 5×5 et 3×3</td></tr>
+    <tr><td>VGG-16</td><td>2014</td><td>ImageNet</td><td class="mono">224×224×3</td><td>uniquement des filtres 3×3 empilés, très profond</td></tr>
+    <tr><td>GoogLeNet</td><td>2014</td><td>ImageNet</td><td class="mono">224×224×3</td><td>modules Inception : 1×1, 3×3, 5×5 en parallèle</td></tr>
+  </table></div>
+</section>
+
+<!-- ============ 6. BACKPROP CNN ============ -->
+<section id="cnn-bp">
+  <h2>6 · Backprop dans un CNN</h2>
+  <p class="lead">Le cours dit que les poids du CNN se calculent par la backpropagation et la descente de gradient. Voici comment le gradient traverse chaque type de couche, en partant de la sortie.</p>
+  <ol class="steps bk">
+    <li><b>Softmax + cross-entropy</b> : <span class="m">δ = p − y</span>, exactement comme dans le MLP.</li>
+    <li><b>Couches FC</b> : la règle de la section 1, sans changement : <span class="m">δ<sup>1</sup> = f′(u<sup>1</sup>) ⊙ (W<sup>2</sup>)<sup>⊺</sup> δ</span>.</li>
+    <li><b>Flatten</b> : aucun calcul. On remet le vecteur de gradients à la forme C×H×W.</li>
+    <li><b>Max pooling</b> : le gradient de chaque case de sortie part <b>entièrement vers la case qui était le maximum</b> ; les 3 autres cases du bloc reçoivent 0. (Average pooling : on répartit g/4 sur les 4 cases.)</li>
+    <li><b>ReLU</b> : le gradient passe là où la feature map était &gt; 0, il est mis à 0 ailleurs.</li>
+    <li><b>Convolution</b> : chaque poids <span class="m">w</span> du filtre a servi à <b>toutes</b> les positions, donc son gradient est une <b>somme</b> sur toutes les positions.</li>
+  </ol>
+  <div class="eq b">∂L/∂w(r,c) = Σ<sub>i,j</sub> δ<sub>F</sub>(i,j) · I<sub>pad</sub>(i+r, j+c) &nbsp;&nbsp;&nbsp; ∂L/∂b = Σ<sub>i,j</sub> δ<sub>F</sub>(i,j)<span class="note">δ<sub>F</sub> = gradient sur la feature map ; r, c = position dans le filtre</span></div>
+  <p>Le gradient d'un poids est donc une « convolution » entre l'entrée et la carte des erreurs. Pour remonter encore plus bas (vers un FEB précédent), on convolue δ<sub>F</sub> avec le filtre retourné de 180°.</p>
+  <h3>Exemple : le gradient traverse max-pool puis ReLU</h3>
+  <p>Supposons que la couche suivante renvoie ces gradients sur la sortie du max pooling. Vois où ils atterrissent dans la carte 4×4 :</p>
+  <div class="grids">
+    <div><div class="glabel">Gradient reçu (2×2)</div><div class="grid" id="g-gpool" style="grid-template-columns:repeat(2,46px)"></div></div>
+    <div><div class="glabel">Max pooling : routage vers l'argmax</div><div class="grid" id="g-groute" style="grid-template-columns:repeat(4,46px)"></div></div>
+    <div><div class="glabel">Après ReLU (δ_F)</div><div class="grid" id="g-grelu" style="grid-template-columns:repeat(4,46px)"></div></div>
+  </div>
+  <p>Ici les 4 maxima étaient positifs, donc ReLU laisse tout passer. Le gradient du poids central du filtre (<span class="m">w<sub>5</sub></span>, qui multiplie le pixel sous le centre) vaut alors <span class="mono" id="w5grad"></span>.</p>
+  <div class="box back"><span class="t">L'idée commune à tout le site</span>Quand un même paramètre est utilisé à plusieurs endroits (un filtre sur toutes les positions, <span class="m">W<sub>hh</sub></span> à tous les instants), <b>son gradient est la somme des contributions de chaque utilisation</b>. C'est la même règle dans le CNN et dans la BPTT.</div>
+</section>
+
+<!-- ============ 7. AUTOENCODEUR ============ -->
+<section id="ae">
+  <h2>7 · Autoencodeur (AE)</h2>
+  <p class="lead">Le CNN apprend une représentation qui <b>distingue les classes</b>. L'autoencodeur apprend une représentation qui <b>préserve l'information</b> : il doit reconstruire son entrée (ou la version voulue de celle-ci) à partir d'un code compressé.</p>
+  <figure><div class="svgwrap">
+  <svg viewBox="0 0 700 220" width="700" role="img" aria-label="Autoencodeur : entrée x, encodeur qui rétrécit, code latent (goulot), décodeur qui élargit, sortie x chapeau">
+    <defs><marker id="ar5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--fwd)"/></marker>
+    <marker id="ar5b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--bwd)"/></marker></defs>
+    <rect x="20" y="40" width="60" height="120" rx="6" class="sv-box"/><text x="50" y="105" text-anchor="middle" class="mt" font-size="17">x</text>
+    <text x="50" y="180" text-anchor="middle" font-size="11" class="mute">entrée (n)</text>
+    <path d="M100 30L290 80V120L100 170Z" class="sv-f"/>
+    <text x="190" y="95" text-anchor="middle" font-size="13">Encodeur</text><text x="190" y="113" text-anchor="middle" font-size="10.5" class="mute">conv + linéaire</text>
+    <rect x="305" y="75" width="90" height="50" rx="8" class="sv-b"/><text x="350" y="98" text-anchor="middle" font-size="13">code z</text><text x="350" y="114" text-anchor="middle" font-size="10.5" class="mute">goulot (d ≪ n)</text>
+    <path d="M410 80L600 30V170L410 120Z" class="sv-f"/>
+    <text x="510" y="95" text-anchor="middle" font-size="13">Décodeur</text><text x="510" y="113" text-anchor="middle" font-size="10.5" class="mute">linéaire + conv</text>
+    <rect x="620" y="40" width="60" height="120" rx="6" class="sv-box"/><text x="650" y="105" text-anchor="middle" class="mt" font-size="17">x̂</text>
+    <text x="650" y="180" text-anchor="middle" font-size="11" class="mute">reconstruction (n)</text>
+    <path d="M80 100H98M290 100H303M395 100H408M600 100H618" class="sv-fl" marker-end="url(#ar5)"/>
+    <path d="M650 195Q350 235 50 195" class="sv-bl" marker-end="url(#ar5b)"/>
+    <text x="350" y="212" text-anchor="middle" font-size="12" style="fill:var(--bwd)">perte MSE : L(x, x̂) = Σ (x<tspan font-size="9" dy="3">j</tspan><tspan dy="-3"> − x̂</tspan><tspan font-size="9" dy="3">j</tspan><tspan dy="-3">)²</tspan></text>
+  </svg></div>
+  <figcaption>Pas d'étiquette : <b>la cible, c'est l'entrée elle-même</b> (apprentissage non supervisé / auto-supervisé).</figcaption></figure>
+  <h3>Les trois parties</h3>
+  <div class="tbl"><table>
+    <tr><th>Partie</th><th>Composition (cours)</th><th>Rôle</th></tr>
+    <tr><td>Encodeur</td><td>couches convolutionnelles + couches linéaires</td><td>compresser x en un code z</td></tr>
+    <tr><td>Code (bottleneck)</td><td>couche de goulot, la plus petite</td><td>représentation latente compressée de l'entrée</td></tr>
+    <tr><td>Décodeur</td><td>couches linéaires + couches convolutionnelles (transposées)</td><td>reconstruire x̂ ≈ x à partir de z</td></tr>
+  </table></div>
+  <p>Le décodeur est en gros l'encodeur « à l'envers ». Comme z est plus petit que x, le réseau ne peut pas recopier bêtement : il est forcé de garder l'information essentielle.</p>
+  <h3>Avant l'entrée et sorties</h3>
+  <ul>
+    <li><b>Même préparation qu'un CNN</b> (taille fixe, normalisation, batch) pour une image ; même découpage en trames de longueur fixe pour un signal 1D.</li>
+    <li><b>Normaliser dans [0, 1]</b> est pratique : on termine alors le décodeur par une sigmoïde pour que x̂ soit dans la même plage que x.</li>
+    <li><b>Sortie</b> : x̂ a <b>exactement la même forme que x</b> (ce n'est pas un vecteur de M probabilités). Pour le débruitage, l'entrée est la version bruitée et la cible la version propre.</li>
+  </ul>
+  <h3>Suivre les formes (AE convolutionnel 2D)</h3>
+  <p>Pour remonter en taille, le décodeur utilise des <b>convolutions transposées</b>. Leur formule de taille est l'inverse de la convolution :</p>
+  <div class="eq f">H′ = (H − 1)·S − 2P + k + output_padding<span class="note">ConvTranspose2d ; avec k = 3, S = 2, P = 1, output_padding = 1 : la taille double exactement</span></div>
+  <div class="tbl"><table>
+    <tr><th></th><th>Opération</th><th>Forme</th><th class="num">Paramètres</th></tr>
+    <tr><td>Entrée</td><td>image normalisée [0,1]</td><td class="mono">1×28×28</td><td class="num">0</td></tr>
+    <tr><td rowspan="3">Encodeur</td><td>Conv 16, 3×3, S=2, P=1 → ReLU</td><td class="mono">16×14×14</td><td class="num">160</td></tr>
+    <tr><td>Conv 32, 3×3, S=2, P=1 → ReLU</td><td class="mono">32×7×7</td><td class="num">4 640</td></tr>
+    <tr><td>Flatten → Linear 1568 → 32</td><td class="mono">32</td><td class="num">50 208</td></tr>
+    <tr><td>Code z</td><td>goulot</td><td class="mono"><b>32</b></td><td class="num">—</td></tr>
+    <tr><td rowspan="3">Décodeur</td><td>Linear 32 → 1568 → reshape</td><td class="mono">32×7×7</td><td class="num">51 744</td></tr>
+    <tr><td>ConvT 16, 3×3, S=2, P=1, op=1 → ReLU</td><td class="mono">16×14×14</td><td class="num">4 624</td></tr>
+    <tr><td>ConvT 1, 3×3, S=2, P=1, op=1 → Sigmoïde</td><td class="mono">1×28×28</td><td class="num">145</td></tr>
+  </table></div>
+  <p class="small">Taux de compression : 784 valeurs → 32, soit ≈ 24 fois moins. La taille du code est un hyperparamètre clé : trop petit, la reconstruction est floue ; trop grand, le réseau ne compresse plus vraiment.</p>
+<pre>class AE(nn.Module):
+    def __init__(self, d=32):
+        super().__init__()
+        self.enc = nn.Sequential(
+            nn.Conv2d(1, 16, 3, stride=2, padding=1), nn.ReLU(),     # 1×28×28 → 16×14×14
+            nn.Conv2d(16, 32, 3, stride=2, padding=1), nn.ReLU(),    # → 32×7×7
+            nn.Flatten(), nn.Linear(32*7*7, d))                      # → d   (code)
+        self.dec = nn.Sequential(
+            nn.Linear(d, 32*7*7), nn.Unflatten(1, (32, 7, 7)),
+            nn.ConvTranspose2d(32, 16, 3, stride=2, padding=1, output_padding=1), nn.ReLU(),  # → 16×14×14
+            nn.ConvTranspose2d(16, 1, 3, stride=2, padding=1, output_padding=1), nn.Sigmoid()) # → 1×28×28
+    def forward(self, x):
+        return self.dec(self.enc(x))
+loss = nn.MSELoss()(model(x), x)          # débruitage : nn.MSELoss()(model(x_bruite), x)</pre>
+  <h3>Perte et backpropagation</h3>
+  <div class="eq f">L(x, x̂) = Σ<sub>j=1..n</sub> (x<sub>j</sub> − x̂<sub>j</sub>)<sup>2</sup><span class="note">critère MSE du cours (L<sub>j</sub> = (x<sub>j</sub> − x̂<sub>j</sub>)² par composante ; PyTorch divise en plus par n)</span></div>
+  <div class="eq b">δ<sub>j</sub> = ∂L/∂x̂<sub>j</sub> = 2 (x̂<sub>j</sub> − x<sub>j</sub>)<span class="note">c'est le point de départ de la backprop, à la place de p − y</span></div>
+  <p>Ensuite, rien de nouveau : on remonte le décodeur puis l'encodeur avec exactement les règles des sections 1 et 6 (FC, ReLU, convolution). Si la dernière couche est une sigmoïde, on multiplie d'abord par <span class="m">x̂(1 − x̂)</span> pour passer au gradient avant activation. Encodeur et décodeur sont entraînés <b>ensemble</b>, d'un seul bloc.</p>
+  <div class="box"><span class="t">Mini-exemple</span>
+  x = <span class="mono">[0.2, 0.8, 0.5]</span>, x̂ = <span class="mono">[0.3, 0.6, 0.5]</span><br>
+  L = 0,1² + 0,2² + 0² = <b>0,05</b> · δ = 2(x̂ − x) = <span class="mono">[0.2, −0.4, 0]</span> : on pousse x̂₁ vers le bas, x̂₂ vers le haut, x̂₃ est déjà bon.</div>
+  <h3>Applications du cours</h3>
+  <div class="tbl"><table>
+    <tr><th>Application</th><th>Entraînement</th><th>Utilisation (inférence)</th></tr>
+    <tr><td>Compression pour transmission</td><td>AE classique</td><td>on envoie seulement le code z ; le récepteur a le décodeur et reconstruit</td></tr>
+    <tr><td>Débruitage (denoising)</td><td>entrée = x + bruit, cible = x propre</td><td>on donne une donnée bruitée, on récupère la version nettoyée</td></tr>
+    <tr><td>Génération (DeepFakes)</td><td>deux AE : (Encodeur A, Décodeur A) sur le fruit A, (Encodeur B, Décodeur B) sur le fruit B</td><td><b>permutation</b> : Encodeur A → Décodeur B ; l'original A ressort « en style B »</td></tr>
+    <tr><td>Détection d'anomalie (ex. drone)</td><td>sur des données normales uniquement (l'interférence seule)</td><td>une donnée anormale (interférence + drone) est mal reconstruite : grosse erreur → alarme</td></tr>
+  </table></div>
+  <div class="box key"><span class="t">Classification vs reconstruction</span>
+  CNN : sortie = M probabilités, perte = cross-entropy, départ de la backprop <span class="m">δ = p − y</span>.<br>
+  AE : sortie = x̂ de même forme que x, perte = MSE, départ de la backprop <span class="m">δ = 2(x̂ − x)</span>.</div>
+</section>
+
+<!-- ============ 8. RNN AVANT ============ -->
+<section id="rnn-avant">
+  <h2>8 · RNN : ce qui se passe avant l'entrée</h2>
+  <p class="lead">Le CNN regarde des voisins dans l'espace. Un modèle séquentiel regarde des voisins dans le <b>temps</b> : la sortie dépend de l'entrée actuelle <em>et</em> des précédentes.</p>
+  <div class="eq f">y<sub>t</sub> = g(x<sub>t</sub>, x<sub>t−1</sub>, x<sub>t−2</sub>, …, x<sub>1</sub>)<span class="note">la même fonction g à chaque pas (récurrence) ; un état caché h<sub>t</sub> de taille K résume tout le passé</span></div>
+  <h3>Les trois nombres de l'entrée</h3>
+  <p>L'entrée d'un RNN est une séquence <span class="m">X = (x<sub>1</sub>, x<sub>2</sub>, …, x<sub>T</sub>)</span> où chaque <span class="m">x<sub>t</sub></span> est un vecteur de <span class="m">n</span> caractéristiques. En batch :</p>
+  <p><span class="dimchip"><span class="n">N<small>séquences</small></span><span class="c1">T<small>pas de temps</small></span><span class="h1">n<small>caractéristiques</small></span></span></p>
+  <div class="tbl"><table>
+    <tr><th>Exemple</th><th>Forme</th><th>T (longueur)</th><th>n (taille de x<sub>t</sub>)</th></tr>
+    <tr><td>Accéléromètre 3 axes, 100 Hz, fenêtres de 2 s</td><td class="mono">(32, 200, 3)</td><td>200 mesures</td><td>3 (ax, ay, az)</td></tr>
+    <tr><td>Phrase de 12 mots, embeddings de dimension 50</td><td class="mono">(16, 12, 50)</td><td>12 mots</td><td>50 (vecteur d'un mot)</td></tr>
+    <tr><td>Exemple BPTT du cours</td><td class="mono">(1, 3, 2)</td><td>3 pas</td><td>2</td></tr>
+    <tr><td>Image 28×28 lue ligne par ligne</td><td class="mono">(64, 28, 28)</td><td>28 lignes</td><td>28 pixels par ligne</td></tr>
+  </table></div>
+  <p>Donc dans <span class="mono">(32, 50, 8)</span> : 32 séquences dans le batch, 50 instants par séquence, 8 valeurs mesurées à chaque instant. <b>T n'est pas un paramètre du réseau</b> : les mêmes poids servent quel que soit T. <b>n, lui, est fixé</b> par la taille de <span class="m">W<sub>xh</sub></span>.</p>
+  <h3>Le pipeline de préparation</h3>
+  <div class="flow">
+    <div class="st"><b>Signal / texte brut</b><span>flux continu</span></div><span class="ar">→</span>
+    <div class="st"><b>Nettoyer, normaliser</b><span>scaler appris sur le train</span></div><span class="ar">→</span>
+    <div class="st"><b>Découper en fenêtres</b><span>longueur T, pas s</span></div><span class="ar">→</span>
+    <div class="st"><b>Vecteurs x<sub>t</sub></b><span>n valeurs par instant</span></div><span class="ar">→</span>
+    <div class="st"><b>Batch</b><span>N×T×n</span></div>
+  </div>
+  <ul>
+    <li><b>Séries temporelles</b> : normaliser chaque voie (moyenne/écart-type calculés <em>sur l'entraînement uniquement</em>), puis découper avec une fenêtre glissante. Une série de 1000 points, fenêtre T = 100, pas 50 → <span class="mono">⌊(1000−100)/50⌋+1 = 19</span> séquences.</li>
+    <li><b>Texte</b> : découper en mots (tokens) → chaque mot devient un indice → une couche d'<b>embedding</b> le transforme en vecteur de taille n. Les phrases plus courtes sont complétées (<b>padding</b>) pour avoir toutes le même T dans un batch.</li>
+    <li><b>Étiquette</b> : en many-to-one, une seule classe <span class="m">y</span> (one-hot de taille M) par séquence ; en many-to-many, une étiquette par instant.</li>
+  </ul>
+  <h3>Les 5 configurations</h3>
+  <figure><div class="svgwrap">
+  <svg viewBox="0 0 700 180" width="700" role="img" aria-label="Configurations one-to-one, one-to-many, many-to-one, many-to-many décalé, many-to-many synchronisé">
+    <g font-size="12" text-anchor="middle" id="cfg"></g>
+  </svg></div>
+  <figcaption>Bleu = entrée, cadre = cellule récurrente, ambre = sortie. Le cours étudie surtout le <b>many-to-one</b> (classification d'une séquence).</figcaption></figure>
+  <div class="tbl"><table>
+    <tr><th>Configuration</th><th>Exemple du cours</th></tr>
+    <tr><td>1. One-to-one</td><td>classification d'image (pas de récurrence)</td></tr>
+    <tr><td>2. One-to-many</td><td>image → phrase qui la décrit</td></tr>
+    <tr><td>3. Many-to-one</td><td>phrase → sentiment positif / négatif</td></tr>
+    <tr><td>4. Many-to-many (décalé)</td><td>traduction anglais → arabe</td></tr>
+    <tr><td>5. Many-to-many (synchronisé)</td><td>étiqueter chaque image d'une vidéo</td></tr>
+  </table></div>
+</section>
+
+<!-- ============ 9. RNN ============ -->
+<section id="rnn">
+  <h2>9 · La cellule RNN</h2>
+  <div class="eq f">a<sub>t</sub> = W<sub>xh</sub> x<sub>t</sub> + W<sub>hh</sub> h<sub>t−1</sub> + b<sub>h</sub> &nbsp;&nbsp;→&nbsp;&nbsp; h<sub>t</sub> = tanh(a<sub>t</sub>)<span class="note">a<sub>t</sub> : état avant activation ; h<sub>t</sub> : état caché après activation</span></div>
+  <div class="eq f">u = W<sub>hy</sub> h<sub>T</sub> + b<sub>y</sub> &nbsp;&nbsp;→&nbsp;&nbsp; p = softmax(u)<span class="note">many-to-one : on ne classe qu'au dernier instant T</span></div>
+  <figure><div class="svgwrap">
+  <svg viewBox="0 0 700 250" width="700" role="img" aria-label="RNN déroulé dans le temps avec poids partagés">
+    <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--fwd)"/></marker>
+    <marker id="ar3b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--bwd)"/></marker></defs>
+    <g class="mt" font-size="15" text-anchor="middle">
+      <text x="40" y="125">h₀</text>
+      <rect x="90" y="95" width="100" height="50" rx="8" class="sv-f"/><text x="140" y="125">tanh</text>
+      <rect x="260" y="95" width="100" height="50" rx="8" class="sv-f"/><text x="310" y="125">tanh</text>
+      <text x="415" y="125">…</text>
+      <rect x="460" y="95" width="100" height="50" rx="8" class="sv-f"/><text x="510" y="125">tanh</text>
+      <rect x="600" y="20" width="80" height="44" rx="8" class="sv-box"/><text x="640" y="47">softmax</text>
+      <text x="140" y="225">x₁</text><text x="310" y="225">x₂</text><text x="510" y="225">x<tspan font-size="10" dy="3">T</tspan></text>
+      <text x="225" y="112" font-size="13">h₁</text><text x="395" y="112" font-size="13">h₂</text><text x="585" y="112" font-size="13">h<tspan font-size="9" dy="3">T</tspan></text>
+      <text x="640" y="84" font-size="13">p</text>
+    </g>
+    <path d="M55 120H88M190 120H258M360 120H400M430 120H458" class="sv-fl" marker-end="url(#ar3)"/>
+    <path d="M140 205V147M310 205V147M510 205V147" class="sv-fl" marker-end="url(#ar3)"/>
+    <path d="M560 110Q600 100 625 66" class="sv-fl" marker-end="url(#ar3)"/>
+    <path d="M458 138H362M258 138H192" class="sv-bl" marker-end="url(#ar3b)"/>
+    <g font-size="11" class="mute" text-anchor="middle"><text x="140" y="180">W_xh</text><text x="310" y="180">W_xh</text><text x="510" y="180">W_xh</text>
+    <text x="225" y="160">W_hh</text><text x="395" y="160">W_hh</text></g>
+    <text x="330" y="30" font-size="12" text-anchor="middle" class="mute">Mêmes W_xh, W_hh, b_h à chaque pas (partage des paramètres)</text>
+    <text x="250" y="80" font-size="11" style="fill:var(--bwd)">← gradient (BPTT), pointillés</text>
+  </svg></div>
+  <figcaption>Déroulement temporel (unrolling) : la cellule est recopiée T fois, mais il n'existe qu'un seul jeu de poids.</figcaption></figure>
+  <h3>Tailles des paramètres</h3>
+  <div class="tbl"><table>
+    <tr><th>Paramètre</th><th>Taille</th><th>Pourquoi</th></tr>
+    <tr><td class="m">W<sub>xh</sub></td><td class="mono">K × n</td><td>transforme x<sub>t</sub> (n) en vecteur de taille K</td></tr>
+    <tr><td class="m">W<sub>hh</sub></td><td class="mono">K × K</td><td>transforme h<sub>t−1</sub> (K) en vecteur de taille K</td></tr>
+    <tr><td class="m">b<sub>h</sub></td><td class="mono">K</td><td>un biais par neurone caché</td></tr>
+    <tr><td class="m">W<sub>hy</sub></td><td class="mono">M × K</td><td>de l'état caché vers les M classes</td></tr>
+    <tr><td class="m">b<sub>y</sub></td><td class="mono">M</td><td>un biais par classe</td></tr>
+  </table></div>
+  <p><b>n</b> = taille de chaque entrée x<sub>t</sub>, <b>K</b> = taille de l'état caché (hidden size, un choix de l'utilisateur), <b>M</b> = nombre de classes. h<sub>0</sub> est initialisé à 0.</p>
+  <h4>Calculateur de paramètres RNN / LSTM</h4>
+  <div class="calc">
+    <label for="pn">n (features)<input id="pn" type="number" min="1" value="3"></label>
+    <label for="pK">K (hidden)<input id="pK" type="number" min="1" value="64"></label>
+    <label for="pM">M (classes)<input id="pM" type="number" min="1" value="4"></label>
+    <label for="pT">T (pas de temps)<input id="pT" type="number" min="1" value="200"></label>
+    <label for="pN">N (batch)<input id="pN" type="number" min="1" value="32"></label>
+  </div>
+  <div id="rnn-calc" class="result"></div>
+<pre>rnn = nn.RNN(input_size=n, hidden_size=K, batch_first=True)   # tanh par défaut
+fc  = nn.Linear(K, M)
+x = torch.randn(N, T, n)          # (batch, temps, features)
+out, h_T = rnn(x)                 # out : (N, T, K) tous les h_t ; h_T : (1, N, K)
+logits = fc(out[:, -1, :])        # many-to-one : on garde seulement h_T → (N, M)</pre>
+</section>
+
+<!-- ============ 10. BPTT ============ -->
+<section id="bptt">
+  <h2>10 · Backpropagation Through Time (RNN)</h2>
+  <p class="lead">Principe : <b>dérouler</b> le RNN dans le temps, puis appliquer la backprop standard sur ce réseau déroulé.</p>
+  <h3>BPTT vs backprop standard</h3>
+  <div class="tbl"><table>
+    <tr><th></th><th>MLP (backprop)</th><th>RNN (BPTT)</th></tr>
+    <tr><td>Le gradient voyage…</td><td>de couche en couche, de la sortie vers l'entrée</td><td>de l'instant T vers l'instant 1</td></tr>
+    <tr><td>Poids</td><td>chaque couche a ses propres poids</td><td>les <b>mêmes</b> W<sub>xh</sub>, W<sub>hh</sub>, b<sub>h</sub> à chaque pas</td></tr>
+    <tr><td>Gradient d'un poids</td><td>un seul terme</td><td><b>somme</b> des contributions de tous les pas, accumulée avant la mise à jour</td></tr>
+    <tr><td>Dépendance</td><td>x<sup>l</sup> dépend de x<sup>l−1</sup></td><td>h<sub>t</sub> dépend de h<sub>t−1</sub>, qui dépend de h<sub>t−2</sub>…</td></tr>
+  </table></div>
+  <h3>L'algorithme</h3>
+  <ol class="steps bk">
+    <li><b>Forward through time</b> : h<sub>0</sub> = 0 ; calculer <span class="m">a<sub>1</sub>→h<sub>1</sub>→a<sub>2</sub>→h<sub>2</sub>→…→h<sub>T</sub>→p</span> et <b>sauvegarder</b> tous les h<sub>t</sub> (on en aura besoin en arrière).</li>
+    <li><b>Erreur de sortie</b> : <span class="m">δ<sub>y</sub> = p − y</span> ; gradients du classifieur <span class="m">∂L/∂W<sub>hy</sub> = δ<sub>y</sub> h<sub>T</sub><sup>⊺</sup></span>, <span class="m">∂L/∂b<sub>y</sub> = δ<sub>y</sub></span>.</li>
+    <li><b>Gradient du dernier état</b> : <span class="m">δ<sub>T</sub> = ∂L/∂h<sub>T</sub> = W<sub>hy</sub><sup>⊺</sup> δ<sub>y</sub></span>.</li>
+    <li><b>Remonter le temps</b>, de t = T à 1 : <span class="m">δ<sub>t−1</sub> = W<sub>hh</sub><sup>⊺</sup> (δ<sub>t</sub> ⊙ (1 − h<sub>t</sub><sup>2</sup>))</span>.</li>
+    <li><b>Accumuler</b> les gradients des paramètres partagés sur tous les t.</li>
+    <li><b>Mettre à jour</b> : <span class="m">θ ← θ − η ∂L/∂θ</span> pour θ ∈ {W<sub>xh</sub>, W<sub>hh</sub>, b<sub>h</sub>, W<sub>hy</sub>, b<sub>y</sub>}.</li>
+  </ol>
+  <h3>La démonstration « faite en cours »</h3>
+  <p>Notation : <span class="m">δ<sub>t</sub> = ∂L/∂h<sub>t</sub></span> et <span class="m">g<sub>t</sub> = ∂L/∂a<sub>t</sub></span> (gradient avant l'activation).</p>
+  <ol>
+    <li>Passer à travers tanh : <span class="m">h<sub>t</sub> = tanh(a<sub>t</sub>)</span>, donc <span class="m">∂h<sub>t</sub>/∂a<sub>t</sub> = 1 − tanh²(a<sub>t</sub>) = 1 − h<sub>t</sub><sup>2</sup></span> (composante par composante). D'où
+      <div class="eq b">g<sub>t</sub> = δ<sub>t</sub> ⊙ (1 − h<sub>t</sub><sup>2</sup>)<span class="note">⊙ = produit élément par élément</span></div></li>
+    <li>Passer à travers la récurrence : <span class="m">a<sub>t</sub> = W<sub>xh</sub>x<sub>t</sub> + W<sub>hh</sub>h<sub>t−1</sub> + b<sub>h</sub></span>, donc <span class="m">∂a<sub>t</sub>/∂h<sub>t−1</sub> = W<sub>hh</sub></span>. En many-to-one, h<sub>t−1</sub> n'influence la perte qu'à travers a<sub>t</sub> :
+      <div class="eq b">δ<sub>t−1</sub> = W<sub>hh</sub><sup>⊺</sup> g<sub>t</sub> = W<sub>hh</sub><sup>⊺</sup> (δ<sub>t</sub> ⊙ (1 − h<sub>t</sub><sup>2</sup>))</div>
+      <p class="small">La transposée vient du fait qu'on remonte : la composante <span class="m">k</span> de h<sub>t−1</sub> a alimenté toutes les composantes <span class="m">i</span> de a<sub>t</sub> via <span class="m">W<sub>hh</sub>(i,k)</span>, donc <span class="m">δ<sub>t−1</sub>(k) = Σ<sub>i</sub> W<sub>hh</sub>(i,k) g<sub>t</sub>(i)</span>, comme <span class="m">Σ<sub>m</sub> δ<sub>m</sub> w<sub>mk</sub></span> dans le MLP.</p></li>
+    <li>Gradients des poids : à l'instant t, <span class="m">∂a<sub>t</sub>/∂W<sub>xh</sub></span> fait apparaître <span class="m">x<sub>t</sub></span> et <span class="m">∂a<sub>t</sub>/∂W<sub>hh</sub></span> fait apparaître <span class="m">h<sub>t−1</sub></span>. Puis on somme sur t :
+      <div class="eq b">∂L/∂W<sub>xh</sub> = Σ<sub>t</sub> g<sub>t</sub> x<sub>t</sub><sup>⊺</sup> &nbsp;&nbsp; ∂L/∂W<sub>hh</sub> = Σ<sub>t</sub> g<sub>t</sub> h<sub>t−1</sub><sup>⊺</sup> &nbsp;&nbsp; ∂L/∂b<sub>h</sub> = Σ<sub>t</sub> g<sub>t</sub></div></li>
+  </ol>
+  <div class="box warn"><span class="t">Coquille dans les slides</span>La slide « Step 6 » écrit <span class="m">∂L/∂b<sub>y</sub> = Σ δ<sub>t</sub> ⊙ (1 − h<sub>t</sub><sup>2</sup>)</span> : il s'agit en fait de <span class="m">∂L/∂b<sub>h</sub></span>. Le gradient de b<sub>y</sub> est juste δ<sub>y</sub>.</div>
+  <h3>L'exemple du cours, recalculé (T = 3, n = 2, K = 2, M = 2)</h3>
+  <p>Entrées <span class="m">x<sub>1</sub> = [1, 0]</span>, <span class="m">x<sub>2</sub> = [0, 1]</span>, <span class="m">x<sub>3</sub> = [1, 1]</span> ; classe vraie <span class="m">y = [1, 0]</span> ; η = 0,1 ; h<sub>0</sub> = 0, biais nuls.</p>
+  <div id="bptt-params" class="row"></div>
+  <div class="box warn"><span class="t">Attention à W<sub>hh</sub></span>La slide des paramètres initiaux affiche <span class="mono">W_hh = [[0.5, 0.1], [0.1, 0.4]]</span>, mais tous les calculs du cours (h<sub>2</sub>, h<sub>3</sub>, le W<sub>hh</sub> mis à jour 0.207…) utilisent <span class="mono">[[0.5, 0.2], [0.1, 0.4]]</span>. On utilise donc cette valeur : tous les nombres ci-dessous retombent alors sur ceux du cours.</div>
+  <h4>Étape 1 · Forward</h4>
+  <div id="bptt-fwd" class="tbl"></div>
+  <div id="bptt-out" class="result"></div>
+  <h4>Étape 2 · Backward through time (t = 3 → 1)</h4>
+  <div id="bptt-bwd" class="tbl"></div>
+  <div class="box warn"><span class="t">Autre coquille</span>La slide recopie <span class="mono">δ₂ = [−0.237544, −0.034942]</span>, qui est en réalité <span class="m">g<sub>3</sub> = δ<sub>3</sub> ⊙ (1 − h<sub>3</sub><sup>2</sup>)</span>. Le vrai <span class="m">δ<sub>2</sub> = W<sub>hh</sub><sup>⊺</sup> g<sub>3</sub></span> est donné dans le tableau. La suite du cours (δ<sub>1</sub>, gradients) est correcte. La slide affiche aussi <span class="mono">0.299102</span> sans le signe moins pour ∂L/∂W<sub>xh</sub>(1,1) : la valeur est −0,299102 (sinon la mise à jour donnerait 0,170 et non 0,2299).</div>
+  <h4>Étapes 3–4 · Gradients accumulés</h4>
+  <div id="bptt-grad" class="result"></div>
+  <h4>Étape 5 · Mise à jour (θ ← θ − 0,1 · ∂L/∂θ)</h4>
+  <div id="bptt-upd" class="result"></div>
+  <h3>Gradient qui disparaît / qui explose</h3>
+  <p>À chaque pas en arrière, δ est multiplié par <span class="m">W<sub>hh</sub><sup>⊺</sup></span> et par <span class="m">(1 − h<sup>2</sup>) ≤ 1</span>. Sur k pas, c'est un <b>produit de k facteurs</b> :</p>
+  <ul>
+    <li>facteurs &lt; 1 → <span class="m">‖δ<sub>t−1</sub>‖ ≪ ‖δ<sub>t</sub>‖</span> : <b>vanishing gradient</b>, les premiers instants n'apprennent presque rien ;</li>
+    <li>facteurs &gt; 1 → <span class="m">‖δ<sub>t−1</sub>‖ ≫ ‖δ<sub>t</sub>‖</span> : <b>exploding gradient</b>, l'entraînement diverge.</li>
+  </ul>
+  <p>Simulation sur un RNN scalaire (K = 1) : bouge le poids récurrent et observe |δ| en remontant 40 pas (échelle logarithmique).</p>
+  <div class="calc"><label for="vw">w_hh = <output id="vwo">0.90</output><input id="vw" type="range" min="0.2" max="2.5" step="0.05" value="0.9"></label></div>
+  <div class="svgwrap"><svg id="vg" viewBox="0 0 640 220" width="100%" role="img" aria-label="Norme du gradient en fonction du nombre de pas remontés"></svg></div>
+  <p class="small">Les deux phénomènes rendent difficile l'apprentissage de dépendances longues. Le LSTM a été conçu pour ça. En pratique on ajoute aussi le <i>gradient clipping</i> (on plafonne ‖∇‖) contre l'explosion.</p>
+</section>
+
+<!-- ============ 11. LSTM ============ -->
+<section id="lstm">
+  <h2>11 · LSTM (Long Short-Term Memory)</h2>
+  <p class="lead">L'état caché d'un RNN joue deux rôles à la fois : <b>mémoire</b> du passé et <b>représentation</b> pour la sortie. Le LSTM sépare ces rôles en deux états.</p>
+  <div class="tbl"><table>
+    <tr><th>État</th><th>Rôle</th></tr>
+    <tr><td class="m">c<sub>t</sub> (cell state)</td><td>mémoire : conserve et met à jour l'information au fil du temps</td></tr>
+    <tr><td class="m">h<sub>t</sub> (hidden state)</td><td>représentation de la séquence à l'instant t : sert à la sortie et passe au pas suivant</td></tr>
+  </table></div>
+  <p>Question du cours : <em>le RNN contrôle-t-il explicitement ce qu'il garde ou oublie ?</em> Non : <span class="m">tanh(W<sub>xh</sub>x<sub>t</sub> + W<sub>hh</sub>h<sub>t−1</sub> + b<sub>h</sub>)</span> mélange tout. Le LSTM ajoute trois « vannes » (portes) entre 0 et 1, calculées par une sigmoïde.</p>
+  <h3>Les trois idées</h3>
+  <h4>Idée 1 · Porte d'oubli f<sub>t</sub> : combien de mémoire garder</h4>
+  <div class="eq f">f<sub>t</sub> = σ(W<sub>xf</sub> x<sub>t</sub> + W<sub>hf</sub> h<sub>t−1</sub> + b<sub>f</sub>) &nbsp;&nbsp;&nbsp; c<sub>t</sub> = f<sub>t</sub> ⊙ c<sub>t−1</sub> + …<span class="note">f ≈ 1 : on garde ; f ≈ 0 : on oublie ; entre les deux : on garde une partie</span></div>
+  <h4>Idée 2 · Porte d'entrée i<sub>t</sub> et candidat c̃<sub>t</sub> : quoi ajouter</h4>
+  <div class="eq f">c̃<sub>t</sub> = tanh(W<sub>xc</sub> x<sub>t</sub> + W<sub>hc</sub> h<sub>t−1</sub> + b<sub>c</sub>) &nbsp;&nbsp; i<sub>t</sub> = σ(W<sub>xi</sub> x<sub>t</sub> + W<sub>hi</sub> h<sub>t−1</sub> + b<sub>i</sub>)</div>
+  <div class="eq f">c<sub>t</sub> = f<sub>t</sub> ⊙ c<sub>t−1</sub> + i<sub>t</sub> ⊙ c̃<sub>t</sub><span class="note">ancienne mémoire retenue + nouvelle information admise</span></div>
+  <h4>Idée 3 · Porte de sortie o<sub>t</sub> : quoi montrer</h4>
+  <div class="eq f">o<sub>t</sub> = σ(W<sub>xo</sub> x<sub>t</sub> + W<sub>ho</sub> h<sub>t−1</sub> + b<sub>o</sub>) &nbsp;&nbsp;&nbsp; h<sub>t</sub> = o<sub>t</sub> ⊙ tanh(c<sub>t</sub>)</div>
+  <h3>Forme compacte (celle à utiliser)</h3>
+  <p>On concatène l'état précédent et l'entrée en un seul vecteur de taille <span class="m">K + n</span> :</p>
+  <ol class="steps">
+    <li><span class="m">z<sub>t</sub> = [h<sub>t−1</sub> ; x<sub>t</sub>]</span></li>
+    <li><span class="m">f<sub>t</sub> = σ(W<sub>f</sub>z<sub>t</sub> + b<sub>f</sub>)</span></li>
+    <li><span class="m">i<sub>t</sub> = σ(W<sub>i</sub>z<sub>t</sub> + b<sub>i</sub>)</span></li>
+    <li><span class="m">c̃<sub>t</sub> = tanh(W<sub>c</sub>z<sub>t</sub> + b<sub>c</sub>)</span></li>
+    <li><span class="m">o<sub>t</sub> = σ(W<sub>o</sub>z<sub>t</sub> + b<sub>o</sub>)</span></li>
+    <li><span class="m">c<sub>t</sub> = f<sub>t</sub> ⊙ c<sub>t−1</sub> + i<sub>t</sub> ⊙ c̃<sub>t</sub></span></li>
+    <li><span class="m">h<sub>t</sub> = o<sub>t</sub> ⊙ tanh(c<sub>t</sub>)</span></li>
+    <li>après le dernier pas : <span class="m">p = softmax(W<sub>hy</sub>h<sub>T</sub> + b<sub>y</sub>)</span></li>
+  </ol>
+  <figure><div class="svgwrap">
+  <svg viewBox="0 0 700 330" width="700" role="img" aria-label="Cellule LSTM : quatre blocs (oubli, entrée, candidat, sortie), ligne de mémoire c en haut">
+    <defs><marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" style="fill:var(--fwd)"/></marker></defs>
+    <rect x="80" y="30" width="540" height="260" rx="16" class="sv-box"/>
+    <path d="M20 70H680" class="sv-fl" marker-end="url(#ar4)"/>
+    <text x="22" y="60" class="mt" font-size="15">c<tspan font-size="10" dy="3">t−1</tspan></text><text x="645" y="60" class="mt" font-size="15">c<tspan font-size="10" dy="3">t</tspan></text>
+    <circle cx="200" cy="70" r="14" class="sv-f"/><text x="200" y="75" text-anchor="middle" font-size="15">×</text>
+    <circle cx="345" cy="70" r="14" class="sv-f"/><text x="345" y="75" text-anchor="middle" font-size="16">+</text>
+    <path d="M20 270H560" class="sv-line"/>
+    <text x="22" y="262" class="mt" font-size="15">h<tspan font-size="10" dy="3">t−1</tspan></text>
+    <path d="M110 320V272" class="sv-line"/><text x="118" y="318" class="mt" font-size="15">x<tspan font-size="10" dy="3">t</tspan></text>
+    <text x="125" y="288" class="mt mute" font-size="13">z = [h<tspan font-size="9" dy="3">t−1</tspan><tspan dy="-3"> ; x</tspan><tspan font-size="9" dy="3">t</tspan><tspan dy="-3">]</tspan></text>
+    <g text-anchor="middle" font-size="14">
+      <rect x="170" y="190" width="60" height="36" rx="6" class="sv-f"/><text x="200" y="213" class="mt">σ</text><text x="200" y="245" font-size="11" class="mute">oubli f</text>
+      <rect x="270" y="190" width="60" height="36" rx="6" class="sv-f"/><text x="300" y="213" class="mt">σ</text><text x="300" y="245" font-size="11" class="mute">entrée i</text>
+      <rect x="360" y="190" width="60" height="36" rx="6" class="sv-f"/><text x="390" y="213">tanh</text><text x="390" y="245" font-size="11" class="mute">candidat c̃</text>
+      <rect x="470" y="190" width="60" height="36" rx="6" class="sv-f"/><text x="500" y="213" class="mt">σ</text><text x="500" y="245" font-size="11" class="mute">sortie o</text>
+    </g>
+    <path d="M200 270V228M300 270V228M390 270V228M500 270V228" class="sv-line"/>
+    <path d="M200 190V86" class="sv-fl" marker-end="url(#ar4)"/>
+    <circle cx="345" cy="140" r="13" class="sv-f"/><text x="345" y="145" text-anchor="middle" font-size="14">×</text>
+    <path d="M300 190L336 150M390 190L354 150" class="sv-fl"/>
+    <path d="M345 127V86" class="sv-fl" marker-end="url(#ar4)"/>
+    <path d="M560 70V108" class="sv-fl" marker-end="url(#ar4)"/>
+    <rect x="535" y="110" width="50" height="28" rx="6" class="sv-box"/><text x="560" y="129" text-anchor="middle" font-size="12">tanh</text>
+    <circle cx="560" cy="170" r="13" class="sv-f"/><text x="560" y="175" text-anchor="middle" font-size="14">×</text>
+    <path d="M560 138V155M500 190L548 178" class="sv-fl"/>
+    <path d="M573 170H600V270H680" class="sv-fl" marker-end="url(#ar4)"/>
+    <text x="645" y="262" class="mt" font-size="15">h<tspan font-size="10" dy="3">t</tspan></text>
+    <text x="350" y="22" text-anchor="middle" font-size="12" class="mute">ligne de mémoire : seulement × f puis + i⊙c̃ (pas de multiplication par W)</text>
+  </svg></div>
+  <figcaption>La mémoire c traverse la cellule presque en ligne droite. C'est ce qui protège le gradient (section 12).</figcaption></figure>
+  <h3>Rôle des trois portes</h3>
+  <div class="tbl"><table>
+    <tr><th>Porte</th><th>Fonction</th></tr>
+    <tr><td>Oubli f<sub>t</sub></td><td>contrôle ce qui est retenu de la mémoire précédente</td></tr>
+    <tr><td>Entrée i<sub>t</sub></td><td>contrôle quelle nouvelle information est ajoutée à la mémoire</td></tr>
+    <tr><td>Sortie o<sub>t</sub></td><td>contrôle quelle information est exposée dans l'état caché</td></tr>
+  </table></div>
+  <h3>Tailles et nombre de paramètres</h3>
+  <div class="tbl"><table>
+    <tr><th>Paramètre</th><th>Taille</th></tr>
+    <tr><td class="m">W<sub>f</sub>, W<sub>i</sub>, W<sub>c</sub>, W<sub>o</sub></td><td class="mono">K × (K + n)</td></tr>
+    <tr><td class="m">b<sub>f</sub>, b<sub>i</sub>, b<sub>c</sub>, b<sub>o</sub></td><td class="mono">K</td></tr>
+    <tr><td class="m">W<sub>hy</sub></td><td class="mono">M × K</td></tr>
+    <tr><td class="m">b<sub>y</sub></td><td class="mono">M</td></tr>
+    <tr><th>Total</th><th class="mono">4K(K+n) + 4K + MK + M</th></tr>
+  </table></div>
+  <p>Un LSTM a environ <b>4 fois</b> les paramètres d'un RNN de même K (4 blocs au lieu d'un). Le calculateur de la section 9 donne les deux.</p>
+  <h3>Entrées et sorties en pratique</h3>
+<pre>lstm = nn.LSTM(input_size=n, hidden_size=K, batch_first=True)
+x = torch.randn(N, T, n)
+out, (h_T, c_T) = lstm(x)
+# out : (N, T, K)  → tous les h_t   (many-to-many)
+# h_T : (1, N, K)  → dernier h      (many-to-one : on le passe à nn.Linear(K, M))
+# c_T : (1, N, K)  → dernière mémoire (jamais utilisée directement pour classer)</pre>
+</section>
+
+<!-- ============ 12. LSTM BPTT ============ -->
+<section id="lstm-bptt">
+  <h2>12 · BPTT pour le LSTM</h2>
+  <p class="lead">Même principe que le RNN : forward en sauvegardant tout, puis remonter de T à 1 en accumulant. Il y a seulement plus de chemins. Gradients à calculer : <span class="m">∂L/∂W<sub>k</sub></span>, <span class="m">∂L/∂b<sub>k</sub></span> pour k ∈ {f, i, c, o}, plus <span class="m">W<sub>hy</sub></span>, <span class="m">b<sub>y</sub></span>.</p>
+  <p>On nomme les valeurs <b>avant</b> activation : <span class="m">a<sub>f</sub> = W<sub>f</sub>z<sub>t</sub> + b<sub>f</sub></span>, <span class="m">a<sub>i</sub></span>, <span class="m">a<sub>c</sub></span>, <span class="m">a<sub>o</sub></span> ; donc <span class="m">f<sub>t</sub> = σ(a<sub>f</sub>)</span>, etc.</p>
+  <ol class="steps bk">
+    <li><b>Forward</b> de t = 1 à T avec c<sub>0</sub> = h<sub>0</sub> = 0 ; sauvegarder f<sub>t</sub>, i<sub>t</sub>, c̃<sub>t</sub>, o<sub>t</sub>, c<sub>t</sub>, h<sub>t</sub> et p.</li>
+    <li><b>Sortie</b> : <span class="m">δ<sub>y</sub> = p − y</span> ; <span class="m">∂L/∂W<sub>hy</sub> = δ<sub>y</sub>h<sub>T</sub><sup>⊺</sup></span> ; <span class="m">∂L/∂b<sub>y</sub> = δ<sub>y</sub></span>.</li>
+    <li><b>Dernier état caché</b> : <span class="m">δh<sub>T</sub> = W<sub>hy</sub><sup>⊺</sup>δ<sub>y</sub></span> ; et <span class="m">δc<sub>T+1</sub> = 0</span>.</li>
+    <li><b>Pour t = T … 1</b> (le cours ne détaille pas ce calcul ; le voici en entier) :</li>
+  </ol>
+  <div class="tbl"><table>
+    <tr><th>On veut</th><th>Formule</th><th>Parce que</th></tr>
+    <tr><td class="m">δo<sub>t</sub></td><td class="m">δh<sub>t</sub> ⊙ tanh(c<sub>t</sub>)</td><td>h = o ⊙ tanh(c)</td></tr>
+    <tr><td class="m">δc<sub>t</sub></td><td class="m">δh<sub>t</sub> ⊙ o<sub>t</sub> ⊙ (1 − tanh²c<sub>t</sub>) + δc<sub>t+1</sub> ⊙ f<sub>t+1</sub></td><td>c<sub>t</sub> sert à h<sub>t</sub> <b>et</b> à c<sub>t+1</sub></td></tr>
+    <tr><td class="m">δf<sub>t</sub>, δi<sub>t</sub>, δc̃<sub>t</sub></td><td class="m">δc<sub>t</sub> ⊙ c<sub>t−1</sub>, &nbsp; δc<sub>t</sub> ⊙ c̃<sub>t</sub>, &nbsp; δc<sub>t</sub> ⊙ i<sub>t</sub></td><td>c = f⊙c<sub>t−1</sub> + i⊙c̃</td></tr>
+    <tr><td class="m">δa<sub>f</sub>, δa<sub>i</sub>, δa<sub>o</sub></td><td class="m">δf ⊙ f(1−f), &nbsp; δi ⊙ i(1−i), &nbsp; δo ⊙ o(1−o)</td><td>σ′ = σ(1−σ)</td></tr>
+    <tr><td class="m">δa<sub>c</sub></td><td class="m">δc̃ ⊙ (1 − c̃²)</td><td>tanh′ = 1 − tanh²</td></tr>
+    <tr><td class="m">δz<sub>t</sub></td><td class="m">W<sub>f</sub><sup>⊺</sup>δa<sub>f</sub> + W<sub>i</sub><sup>⊺</sup>δa<sub>i</sub> + W<sub>c</sub><sup>⊺</sup>δa<sub>c</sub> + W<sub>o</sub><sup>⊺</sup>δa<sub>o</sub></td><td>z alimente les 4 blocs</td></tr>
+    <tr><td class="m">δh<sub>t−1</sub></td><td>les K premières composantes de <span class="m">δz<sub>t</sub></span></td><td>z = [h<sub>t−1</sub> ; x<sub>t</sub>]</td></tr>
+  </table></div>
+  <ol class="steps bk" style="counter-reset:s 4">
+    <li><b>Accumuler</b> : <span class="m">∂L/∂W<sub>k</sub> = Σ<sub>t</sub> δa<sub>k,t</sub> z<sub>t</sub><sup>⊺</sup></span> et <span class="m">∂L/∂b<sub>k</sub> = Σ<sub>t</sub> δa<sub>k,t</sub></span>, pour k ∈ {f, i, c, o}. (La slide écrit <span class="m">z<sub>T</sub></span> dans la somme : c'est <span class="m">z<sub>t</sub></span>.)</li>
+    <li><b>Mettre à jour</b> : <span class="m">W<sub>k</sub> ← W<sub>k</sub> − η ∂L/∂W<sub>k</sub></span>, <span class="m">b<sub>k</sub> ← b<sub>k</sub> − η ∂L/∂b<sub>k</sub></span>, et pareil pour le classifieur.</li>
+  </ol>
+  <div class="box back"><span class="t">Pourquoi le LSTM résiste au vanishing gradient</span>
+  Sur la ligne de mémoire, le gradient remonte par <span class="m">δc<sub>t−1</sub> ← δc<sub>t</sub> ⊙ f<sub>t</sub></span> : pas de multiplication par une matrice de poids, pas de dérivée de tanh. Si le réseau apprend f ≈ 1, le gradient traverse des dizaines de pas presque intact. Dans le RNN, il est multiplié à chaque pas par <span class="m">W<sub>hh</sub><sup>⊺</sup></span> et <span class="m">(1 − h²)</span>.</div>
+  <h3>Exemple chiffré (K = 1, n = 1, M = 2, T = 2)</h3>
+  <p>Avec K = n = 1, tout est scalaire et se suit à la main. <span class="m">z<sub>t</sub> = [h<sub>t−1</sub>, x<sub>t</sub>]</span>, biais nuls, <span class="m">x<sub>1</sub> = 1</span>, <span class="m">x<sub>2</sub> = 0,5</span>, <span class="m">y = [1, 0]</span>. Poids : <span class="mono">W_f=[0.5, 0.4]</span>, <span class="mono">W_i=[0.3, 0.6]</span>, <span class="mono">W_c=[0.2, 0.7]</span>, <span class="mono">W_o=[0.4, 0.5]</span>, <span class="mono">W_hy=[0.8, −0.5]ᵀ</span>. Les gradients ont été vérifiés par différences finies.</p>
+  <h4>Forward</h4>
+  <div id="lstm-fwd" class="tbl"></div>
+  <div id="lstm-out" class="result"></div>
+  <h4>Backward (t = 2 puis t = 1)</h4>
+  <div id="lstm-bwd" class="tbl"></div>
+  <p class="small">À t = 1, <span class="m">δf<sub>1</sub> = 0</span> parce que <span class="m">c<sub>0</sub> = 0</span> : la porte d'oubli n'avait rien à oublier. Et <span class="m">δc<sub>1</sub></span> reçoit <span class="m">δc<sub>2</sub> ⊙ f<sub>2</sub></span> en plus du terme venant de h<sub>1</sub> : c'est le chemin de mémoire.</p>
+  <h4>Gradients accumulés</h4>
+  <div id="lstm-grad" class="result"></div>
+</section>
+
+<!-- ============ 13. FICHE ============ -->
+<section id="fiche">
+  <h2>13 · Fiche de révision</h2>
+  <h3>Toutes les formes d'un coup d'œil</h3>
+  <div class="tbl"><table>
+    <tr><th>Modèle</th><th>Entrée</th><th>Intermédiaire</th><th>Sortie finale</th><th>Perte</th></tr>
+    <tr><td>MLP</td><td class="mono">N × n</td><td class="mono">N × K</td><td class="mono">N × M</td><td>cross-entropy</td></tr>
+    <tr><td>CNN 2D</td><td class="mono">N × C × H × W</td><td class="mono">N × C<sub>out</sub> × H′ × W′</td><td class="mono">N × M</td><td>cross-entropy</td></tr>
+    <tr><td>CNN 1D</td><td class="mono">N × C × L</td><td class="mono">N × C<sub>out</sub> × L′</td><td class="mono">N × M</td><td>cross-entropy</td></tr>
+    <tr><td>Autoencodeur</td><td class="mono">N × C × H × W</td><td class="mono">N × d (code)</td><td class="mono">N × C × H × W</td><td>MSE</td></tr>
+    <tr><td>RNN / LSTM</td><td class="mono">N × T × n</td><td class="mono">N × T × K (tous les h<sub>t</sub>)</td><td class="mono">N × M (à partir de h<sub>T</sub>)</td><td>cross-entropy</td></tr>
+  </table></div>
+  <h3>Formules essentielles</h3>
+  <div class="tbl"><table>
+    <tr><th>Quoi</th><th>Formule</th></tr>
+    <tr><td>Taille après conv / pool</td><td class="m">⌊(H − k + 2P)/S⌋ + 1</td></tr>
+    <tr><td>Taille après conv transposée</td><td class="m">(H − 1)S − 2P + k + output_padding</td></tr>
+    <tr><td>Paramètres conv</td><td class="m">C<sub>out</sub>(C<sub>in</sub>k² + 1)</td></tr>
+    <tr><td>Paramètres RNN</td><td class="m">Kn + K² + K + MK + M</td></tr>
+    <tr><td>Paramètres LSTM</td><td class="m">4K(K+n) + 4K + MK + M</td></tr>
+    <tr><td>Erreur de sortie (softmax + CE)</td><td class="m">δ = p − y</td></tr>
+    <tr><td>Erreur de sortie (MSE, AE)</td><td class="m">δ = 2(x̂ − x)</td></tr>
+    <tr><td>Erreur cachée (MLP)</td><td class="m">δ<sub>k</sub><sup>1</sup> = f′(u<sub>k</sub><sup>1</sup>) Σ<sub>m</sub> δ<sub>m</sub>w<sub>mk</sub><sup>2</sup></td></tr>
+    <tr><td>Récurrence BPTT</td><td class="m">δ<sub>t−1</sub> = W<sub>hh</sub><sup>⊺</sup>(δ<sub>t</sub> ⊙ (1 − h<sub>t</sub><sup>2</sup>))</td></tr>
+    <tr><td>Gradients RNN</td><td class="m">Σ<sub>t</sub> g<sub>t</sub>x<sub>t</sub><sup>⊺</sup>, &nbsp; Σ<sub>t</sub> g<sub>t</sub>h<sub>t−1</sub><sup>⊺</sup>, &nbsp; Σ<sub>t</sub> g<sub>t</sub></td></tr>
+    <tr><td>Mémoire LSTM</td><td class="m">c<sub>t</sub> = f<sub>t</sub>⊙c<sub>t−1</sub> + i<sub>t</sub>⊙c̃<sub>t</sub>, &nbsp; h<sub>t</sub> = o<sub>t</sub>⊙tanh(c<sub>t</sub>)</td></tr>
+    <tr><td>Mise à jour</td><td class="m">θ ← θ − η ∂L/∂θ</td></tr>
+  </table></div>
+  <h3>Pièges classiques</h3>
+  <ul>
+    <li>Confondre <b>C×H×W</b> (PyTorch) et <b>H×W×C</b> (Keras, articles).</li>
+    <li>Oublier que le filtre a la <b>profondeur des canaux d'entrée</b> : un 3×3 sur du RGB a 27 poids.</li>
+    <li>Croire que le pooling réduit le nombre de canaux : il ne réduit que H et W.</li>
+    <li>Dans un AE de débruitage, comparer x̂ à l'entrée bruitée : la cible est la version <b>propre</b>.</li>
+    <li>Croire que T fait partie des paramètres d'un RNN : les poids ne dépendent que de n, K et M.</li>
+    <li>Oublier de <b>sommer</b> sur t les gradients des poids partagés en BPTT.</li>
+    <li>Oublier le terme <span class="m">δc<sub>t+1</sub> ⊙ f<sub>t+1</sub></span> dans le gradient de la mémoire du LSTM.</li>
+    <li>Laisser le Dropout actif en test, ou calculer la normalisation sur tout le jeu (train + test).</li>
+  </ul>
+</section>
+
+<!-- ============ 14. QUIZ ============ -->
+<section id="quiz">
+  <h2>14 · Quiz</h2>
+  <p>Réponds, la correction s'affiche immédiatement. Score : <span class="score" id="qscore">0 / 0</span></p>
+  <div id="qbox"></div>
+</section>
+
+</div></main>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const f6=v=>(Math.abs(v)<5e-7?0:v).toFixed(6);
+const f4=v=>(Math.abs(v)<5e-5?0:v).toFixed(4);
+const mv=(A,x)=>A.map(r=>r.reduce((s,a,j)=>s+a*x[j],0));
+const tmv=(A,x)=>A[0].map((_,j)=>A.reduce((s,r,i)=>s+r[j]*x[i],0));
+const outer=(a,b)=>a.map(ai=>b.map(bj=>ai*bj));
+const add=(a,b)=>a.map((v,i)=>Array.isArray(v)?add(v,b[i]):v+b[i]);
+const sub=(a,b)=>a.map((v,i)=>Array.isArray(v)?sub(v,b[i]):v-b[i]);
+const scal=(k,a)=>a.map(v=>Array.isArray(v)?scal(k,v):k*v);
+const had=(a,b)=>a.map((v,i)=>v*b[i]);
+const sig=v=>1/(1+Math.exp(-v));
+const softmax=u=>{const m=Math.max(...u);const e=u.map(v=>Math.exp(v-m));const s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s)};
+const zeros=(r,c)=>Array.from({length:r},()=>Array(c).fill(0));
+function M(a,fmt){fmt=fmt||f6; if(!Array.isArray(a[0])) a=a.map(v=>[v]);
+  return '<span class="mat" style="grid-template-columns:repeat('+a[0].length+',auto)">'+a.flat().map(v=>'<span>'+fmt(v)+'</span>').join('')+'</span>'}
+
+// ===== MLP =====
+function mlp(){
+  const x=[+$('mx1').value||0,+$('mx2').value||0], cls=+$('my').value, y=cls?[0,1]:[1,0], mu=0.5;
+  const W1=[[0.1,0.3],[0.2,-0.1]], W2=[[0.4,-0.2],[0.3,0.5]];
+  const u1=mv(W1,x), h=u1.map(sig), u2=mv(W2,h), p=softmax(u2), L=-Math.log(p[cls]);
+  const d2=sub(p,y), d1=had(tmv(W2,d2),h.map(v=>v*(1-v)));
+  const gW2=outer(d2,h), gW1=outer(d1,x);
+  $('mlp-out').innerHTML=
+   'W¹ = '+M(W1,f4)+'  W² = '+M(W2,f4)+'<br>'+
+   '<b>Forward</b> · u¹ = W¹x = '+M(u1)+' → x¹ = σ(u¹) = '+M(h)+' → u² = '+M(u2)+' → p = '+M(p)+'  L = '+f6(L)+'<br>'+
+   '<b style="color:var(--bwd)">Backward</b> · δ = p − y = '+M(d2)+' → δ¹ = σ′(u¹) ⊙ (W²)ᵀδ = '+M(d1)+'<br>'+
+   '∂L/∂W² = δ x¹ᵀ = '+M(gW2)+'  ∂L/∂W¹ = δ¹ xᵀ = '+M(gW1)+'<br>'+
+   '<b>Mise à jour</b> (μ = 0,5) · W² ← '+M(sub(W2,scal(mu,gW2)),f4)+'  W¹ ← '+M(sub(W1,scal(mu,gW1)),f4);
+}
+['mx1','mx2','my'].forEach(id=>$(id).addEventListener('input',mlp)); mlp();
+
+// ===== Grilles CNN =====
+const IMG=[[5,7,5,9],[6,9,8,5],[4,8,5,8],[5,8,3,6]], KER=[[0,-1,0],[-1,4,-1],[0,-1,0]];
+const PAD=Array.from({length:6},(_,i)=>Array.from({length:6},(_,j)=>(i&&j&&i<5&&j<5)?IMG[i-1][j-1]:0));
+const FM=IMG.map((r,i)=>r.map((_,j)=>{let s=0;for(let a=0;a<3;a++)for(let b=0;b<3;b++)s+=PAD[i+a][j+b]*KER[a][b];return s}));
+const RELU=FM.map(r=>r.map(v=>Math.max(0,v)));
+function cells(el,data,cls){el.innerHTML=data.flat().map((v,k)=>'<div class="c '+(cls?cls(v,k):'')+'">'+v+'</div>').join('')}
+cells($('g-input'),IMG);
+cells($('g-ker'),KER,v=>v<0?'neg':'');
+cells($('g-fm2'),FM,v=>v<0?'neg':'');
+cells($('g-relu'),RELU);
+const blk=(i,j)=>[RELU[i][j],RELU[i][j+1],RELU[i+1][j],RELU[i+1][j+1]];
+cells($('g-max'),[0,2].map(bi=>[0,2].map(bj=>Math.max(...blk(bi,bj)))));
+cells($('g-avg'),[0,2].map(bi=>[0,2].map(bj=>blk(bi,bj).reduce((a,b)=>a+b,0)/4)));
+let pos=-1; const done=new Set();
+function drawConv(){
+  const i=pos>=0?Math.floor(pos/4):-1, j=pos>=0?pos%4:-1;
+  $('g-pad').innerHTML=PAD.flat().map((v,k)=>{const r=Math.floor(k/6),c=k%6;let cl=(r===0||c===0||r===5||c===5)?'pad':'';
+    if(pos>=0&&r>=i&&r<i+3&&c>=j&&c<j+3)cl+=' win'; if(pos>=0&&r===i+1&&c===j+1)cl+=' ctr'; return '<div class="c '+cl+'">'+v+'</div>'}).join('');
+  $('g-fm').innerHTML=FM.flat().map((v,k)=>{const show=done.has(k);return '<button type="button" class="c '+(k===pos?'out':'')+(show?(v<0?' neg':''):' empty')+'" data-k="'+k+'" aria-label="ligne '+(Math.floor(k/4)+1)+' colonne '+(k%4+1)+'">'+(show?v:'?')+'</button>'}).join('');
+  if(pos<0){$('cv-line').textContent='Clique sur « Suivant » pour placer le filtre sur le premier pixel.';return}
+  const terms=[];for(let a=0;a<3;a++)for(let b=0;b<3;b++){const w=KER[a][b],x=PAD[i+a][j+b];if(w!==0)terms.push((w<0?'(':'')+w+(w<0?')':'')+'×'+x)}
+  $('cv-line').innerHTML='Ligne '+(i+1)+', colonne '+(j+1)+' : '+terms.join(' + ')+' = <b>'+FM[i][j]+'</b>  (les 4 coins du filtre valent 0)';
+}
+function go(p){pos=Math.max(0,Math.min(15,p));done.add(pos);drawConv()}
+$('cv-next').onclick=()=>go(pos+1);
+$('cv-prev').onclick=()=>{if(pos>0){done.delete(pos);pos--;drawConv()}};
+$('cv-all').onclick=()=>{for(let k=0;k<16;k++)done.add(k);pos=15;drawConv()};
+$('cv-reset').onclick=()=>{done.clear();pos=-1;drawConv()};
+$('g-fm').addEventListener('click',e=>{const b=e.target.closest('[data-k]');if(b)go(+b.dataset.k)});
+drawConv();
+// backprop max-pool → relu
+const GP=[[0.5,-1],[2,0.25]], route=zeros(4,4);
+[0,1].forEach(bi=>[0,1].forEach(bj=>{let best=-Infinity,r=0,c=0;for(let a=0;a<2;a++)for(let b=0;b<2;b++){const v=RELU[bi*2+a][bj*2+b];if(v>best){best=v;r=bi*2+a;c=bj*2+b}}route[r][c]=GP[bi][bj]}));
+const dF=route.map((r,i)=>r.map((v,j)=>FM[i][j]>0?v:0));
+cells($('g-gpool'),GP,()=>'gbw');
+cells($('g-groute'),route,v=>v?'gbw':'empty');
+cells($('g-grelu'),dF,v=>v?'gbw':'empty');
+const terms5=[];let w5=0;for(let i=0;i<4;i++)for(let j=0;j<4;j++)if(dF[i][j]){w5+=dF[i][j]*PAD[i+1][j+1];terms5.push((dF[i][j]<0?'('+dF[i][j]+')':dF[i][j])+'×'+PAD[i+1][j+1])}
+$('w5grad').textContent='Σ δ_F(i,j)·I(i,j) = '+terms5.join(' + ')+' = '+w5;
+
+// ===== Calculateur conv =====
+function convCalc(){
+  const g=id=>Math.max(0,parseInt($(id).value)||0);
+  const H=g('cH'),W=g('cW'),C=g('cC'),k=g('cK'),P=g('cP'),S=Math.max(1,g('cS')),F=g('cF'),pool=+$('cPool').value;
+  const Ho=Math.floor((H-k+2*P)/S)+1, Wo=Math.floor((W-k+2*P)/S)+1;
+  if(Ho<1||Wo<1||k<1){$('conv-calc').textContent='Le filtre est plus grand que l\'image (même avec le padding) : augmente P ou réduis k.';return}
+  let s='H′ = ⌊('+H+' − '+k+' + 2×'+P+') / '+S+'⌋ + 1 = <b>'+Ho+'</b> &nbsp; W′ = <b>'+Wo+'</b><br>'+
+   'Sortie conv : <b>'+F+' × '+Ho+' × '+Wo+'</b> ('+F+' feature maps)<br>'+
+   'Un filtre = '+C+'×'+k+'×'+k+' = '+(C*k*k)+' poids + 1 biais → couche : '+F+' × '+(C*k*k+1)+' = <b>'+(F*(C*k*k+1))+'</b> paramètres';
+  if(pool){const Hp=Math.floor((Ho-pool)/pool)+1,Wp=Math.floor((Wo-pool)/pool)+1;
+    s+= (Hp<1||Wp<1)?'<br>Pooling impossible : la carte est plus petite que la fenêtre.':'<br>Après pooling '+pool+'×'+pool+' : <b>'+F+' × '+Hp+' × '+Wp+'</b> (0 paramètre) → flatten = <b>'+(F*Hp*Wp)+'</b> valeurs'}
+  $('conv-calc').innerHTML=s;
+}
+['cH','cW','cC','cK','cP','cS','cF','cPool'].forEach(id=>$(id).addEventListener('input',convCalc)); convCalc();
+
+// ===== Calculateur RNN/LSTM =====
+function rnnCalc(){
+  const g=id=>Math.max(1,parseInt($(id).value)||1);
+  const n=g('pn'),K=g('pK'),Mc=g('pM'),T=g('pT'),N=g('pN');
+  const cls=Mc*K+Mc, rnn=K*n+K*K+K, lstm=4*K*(K+n)+4*K;
+  $('rnn-calc').innerHTML='Entrée : <b>('+N+', '+T+', '+n+')</b> → sortie du bloc récurrent : ('+N+', '+T+', '+K+') → h<sub>T</sub> : ('+N+', '+K+') → logits : <b>('+N+', '+Mc+')</b><br>'+
+   'RNN : W_xh '+K+'×'+n+' + W_hh '+K+'×'+K+' + b_h '+K+' = '+rnn+'  + classifieur '+cls+' = <b>'+(rnn+cls)+'</b><br>'+
+   'LSTM : 4 × ['+K+'×('+K+'+'+n+') + '+K+'] = '+lstm+'  + classifieur '+cls+' = <b>'+(lstm+cls)+'</b><br>'+
+   '<span style="color:var(--muted)">T = '+T+' ne change pas le nombre de paramètres. PyTorch ajoute un 2ᵉ vecteur de biais (b_ih et b_hh) : +'+K+' (RNN), +'+(4*K)+' (LSTM).</span>';
+}
+['pn','pK','pM','pT','pN'].forEach(id=>$(id).addEventListener('input',rnnCalc)); rnnCalc();
+
+// ===== Configurations SVG =====
+(function(){
+  const names=['One-to-one','One-to-many','Many-to-one','Many-to-many','Many-to-many (sync)'];
+  const spec=[[[1],[1]],[[1,0,0],[1,1,1]],[[1,1,1],[0,0,1]],[[1,1,0,0],[0,0,1,1]],[[1,1,1],[1,1,1]]];
+  let x0=10, out='';
+  spec.forEach((sp,k)=>{const n=sp[0].length, w=n*30-8, cx=x0+(130-w)/2;
+    out+='<text x="'+(x0+65)+'" y="168" font-size="11.5">'+names[k]+'</text>';
+    for(let t=0;t<n;t++){const x=cx+t*30;
+      out+='<rect x="'+x+'" y="62" width="22" height="22" rx="4" class="sv-box" style="stroke:var(--fg)"/>';
+      if(t>0) out+='<path d="M'+(x-8)+' 73H'+x+'" class="sv-line"/>';
+      if(sp[0][t]) out+='<rect x="'+x+'" y="112" width="22" height="22" rx="4" class="sv-f"/><path d="M'+(x+11)+' 112V84" class="sv-line"/>';
+      if(sp[1][t]) out+='<rect x="'+x+'" y="12" width="22" height="22" rx="4" class="sv-b"/><path d="M'+(x+11)+' 62V34" class="sv-line"/>';
+    }
+    x0+=138;});
+  $('cfg').innerHTML=out;
+})();
+
+// ===== BPTT =====
+(function(){
+  const Wxh=[[0.2,0.1],[0.1,0.2]], Whh=[[0.5,0.2],[0.1,0.4]], Why=[[0.4,0.2],[-0.3,0.1]], bh=[0,0], by=[0,0], eta=0.1;
+  const xs=[[1,0],[0,1],[1,1]], y=[1,0];
+  $('bptt-params').innerHTML='<span>W<sub>xh</sub> = '+M(Wxh,f4)+'</span><span>W<sub>hh</sub> = '+M(Whh,f4)+'</span><span>W<sub>hy</sub> = '+M(Why,f4)+'</span><span>b<sub>h</sub> = b<sub>y</sub> = h<sub>0</sub> = '+M([0,0],f4)+'</span>';
+  const h=[[0,0]], a=[null];
+  for(const x of xs){const at=add(add(mv(Wxh,x),mv(Whh,h[h.length-1])),bh);a.push(at);h.push(at.map(Math.tanh))}
+  let rows='<table><tr><th>t</th><th>x<sub>t</sub></th><th>a<sub>t</sub> = W<sub>xh</sub>x<sub>t</sub> + W<sub>hh</sub>h<sub>t−1</sub></th><th>h<sub>t</sub> = tanh(a<sub>t</sub>)</th></tr>';
+  for(let t=1;t<=3;t++) rows+='<tr><td>'+t+'</td><td>'+M(xs[t-1],v=>v)+'</td><td>'+M(a[t])+'</td><td>'+M(h[t])+'</td></tr>';
+  $('bptt-fwd').innerHTML=rows+'</table>';
+  const u=add(mv(Why,h[3]),by), p=softmax(u), L=-Math.log(p[0]), dy=sub(p,y);
+  $('bptt-out').innerHTML='u = W<sub>hy</sub>h<sub>3</sub> = '+M(u)+' → p = softmax(u) = '+M(p)+' → L = −log('+f6(p[0])+') = <b>'+f6(L)+'</b><br><span style="color:var(--bwd)">δ<sub>y</sub> = p − y = '+M(dy)+'</span>';
+  const d={3:tmv(Why,dy)}, g={};
+  let br='<table><tr><th>t</th><th>δ<sub>t</sub> = ∂L/∂h<sub>t</sub></th><th>1 − h<sub>t</sub>²</th><th>g<sub>t</sub> = δ<sub>t</sub> ⊙ (1 − h<sub>t</sub>²)</th><th>δ<sub>t−1</sub> = W<sub>hh</sub>ᵀ g<sub>t</sub></th></tr>';
+  for(let t=3;t>=1;t--){const one=h[t].map(v=>1-v*v);g[t]=had(d[t],one);d[t-1]=tmv(Whh,g[t]);
+    br+='<tr><td>'+t+'</td><td>'+M(d[t])+(t===3?'<br><small style="color:var(--muted)">= W<sub>hy</sub>ᵀ δ<sub>y</sub></small>':'')+'</td><td>'+M(one)+'</td><td>'+M(g[t])+'</td><td>'+(t>1?M(d[t-1]):'<small style="color:var(--muted)">(h₀ n\'est pas appris)</small>')+'</td></tr>'}
+  $('bptt-bwd').innerHTML=br+'</table>';
+  let gx=zeros(2,2),gh=zeros(2,2),gb=[0,0];
+  for(let t=1;t<=3;t++){gx=add(gx,outer(g[t],xs[t-1]));gh=add(gh,outer(g[t],h[t-1]));gb=add(gb,g[t])}
+  const gWhy=outer(dy,h[3]);
+  $('bptt-grad').innerHTML='∂L/∂W<sub>xh</sub> = g₁x₁ᵀ + g₂x₂ᵀ + g₃x₃ᵀ = '+M(gx)+'<br>∂L/∂W<sub>hh</sub> = g₁h₀ᵀ + g₂h₁ᵀ + g₃h₂ᵀ = '+M(gh)+'<br>∂L/∂b<sub>h</sub> = g₁ + g₂ + g₃ = '+M(gb)+'<br>∂L/∂W<sub>hy</sub> = δ<sub>y</sub>h₃ᵀ = '+M(gWhy)+'   ∂L/∂b<sub>y</sub> = δ<sub>y</sub> = '+M(dy);
+  $('bptt-upd').innerHTML='W<sub>xh</sub> ← '+M(sub(Wxh,scal(eta,gx)))+'   W<sub>hh</sub> ← '+M(sub(Whh,scal(eta,gh)))+'<br>b<sub>h</sub> ← '+M(sub(bh,scal(eta,gb)))+'   W<sub>hy</sub> ← '+M(sub(Why,scal(eta,gWhy)))+'   b<sub>y</sub> ← '+M(sub(by,scal(eta,dy)));
+})();
+
+// ===== Vanishing / exploding =====
+function vg(){
+  const w=+$('vw').value; $('vwo').textContent=w.toFixed(2);
+  const T=40,h=[0]; for(let t=1;t<=T;t++)h.push(Math.tanh(w*h[t-1]+0.5*(t%2?1:-1)));
+  const d=[1]; for(let k=1;k<=T;k++){const t=T-k+1;d.push(Math.abs(w*(1-h[t]*h[t])*d[k-1]))}
+  const lg=d.map(v=>Math.log10(Math.max(v,1e-12)));
+  const lo=-8,hi=4, X=k=>50+k*(570/T), Y=v=>15+(hi-Math.max(lo,Math.min(hi,v)))*(180/(hi-lo));
+  let s='';
+  for(let e=lo;e<=hi;e+=2) s+='<line x1="50" x2="620" y1="'+Y(e)+'" y2="'+Y(e)+'" style="stroke:var(--line)"/><text x="44" y="'+(Y(e)+4)+'" text-anchor="end" font-size="11" class="mute">1e'+e+'</text>';
+  s+='<line x1="50" x2="620" y1="'+Y(0)+'" y2="'+Y(0)+'" style="stroke:var(--muted);stroke-dasharray:4 3"/>';
+  for(let k=0;k<=T;k+=10) s+='<text x="'+X(k)+'" y="212" text-anchor="middle" font-size="11" class="mute">'+k+'</text>';
+  s+='<text x="616" y="200" text-anchor="end" font-size="11" class="mute">pas remontés →</text>';
+  s+='<polyline fill="none" style="stroke:var(--bwd);stroke-width:2.5" points="'+lg.map((v,k)=>X(k)+','+Y(v)).join(' ')+'"/>';
+  s+='<circle cx="'+X(T)+'" cy="'+Y(lg[T])+'" r="4" style="fill:var(--bwd)"/>';
+  const last=d[T];
+  s+='<text x="60" y="30" font-size="12">|δ| après 40 pas : '+(last<1e-3?last.toExponential(1)+' → disparaît':last>1e3?last.toExponential(1)+' → explose':last.toPrecision(3))+'</text>';
+  $('vg').innerHTML=s;
+}
+$('vw').addEventListener('input',vg); vg();
+
+// ===== LSTM scalaire =====
+(function(){
+  const W={f:[0.5,0.4],i:[0.3,0.6],c:[0.2,0.7],o:[0.4,0.5]}, Why=[0.8,-0.5], xs=[1,0.5], y=[1,0];
+  const dot=(w,z)=>w[0]*z[0]+w[1]*z[1];
+  let h=0,c=0; const S=[];
+  for(const x of xs){const z=[h,x],f=sig(dot(W.f,z)),i=sig(dot(W.i,z)),ct=Math.tanh(dot(W.c,z)),o=sig(dot(W.o,z)),cn=f*c+i*ct,hn=o*Math.tanh(cn);
+    S.push({z,f,i,ct,o,cp:c,c:cn,h:hn});h=hn;c=cn}
+  let r='<table><tr><th>t</th><th>z<sub>t</sub> = [h<sub>t−1</sub>, x<sub>t</sub>]</th><th class="num">f<sub>t</sub></th><th class="num">i<sub>t</sub></th><th class="num">c̃<sub>t</sub></th><th class="num">o<sub>t</sub></th><th class="num">c<sub>t</sub></th><th class="num">h<sub>t</sub></th></tr>';
+  S.forEach((s,t)=>{r+='<tr><td>'+(t+1)+'</td><td class="mono">['+f6(s.z[0])+', '+s.z[1]+']</td>'+[s.f,s.i,s.ct,s.o,s.c,s.h].map(v=>'<td class="num">'+f6(v)+'</td>').join('')+'</tr>'});
+  $('lstm-fwd').innerHTML=r+'</table>';
+  const u=Why.map(w=>w*h), p=softmax(u), dy=sub(p,y), dhT=Why[0]*dy[0]+Why[1]*dy[1];
+  $('lstm-out').innerHTML='Exemple t=1 : c₁ = f₁·c₀ + i₁·c̃₁ = '+f6(S[0].f)+'×0 + '+f6(S[0].i)+'×'+f6(S[0].ct)+' = '+f6(S[0].c)+' ; h₁ = o₁·tanh(c₁) = '+f6(S[0].h)+'<br>u = W<sub>hy</sub>h₂ = '+M(u)+' → p = '+M(p)+' → L = '+f6(-Math.log(p[0]))+'<br><span style="color:var(--bwd)">δ<sub>y</sub> = '+M(dy)+' → δh₂ = W<sub>hy</sub>ᵀδ<sub>y</sub> = '+f6(dhT)+'</span>';
+  const G={f:[0,0],i:[0,0],c:[0,0],o:[0,0]};
+  let dh=dhT, dcn=0, fn=0;
+  let b='<table><tr><th>t</th><th class="num">δh<sub>t</sub></th><th class="num">δo</th><th class="num">δc<sub>t</sub></th><th class="num">δf</th><th class="num">δi</th><th class="num">δc̃</th><th class="num">δa<sub>f</sub></th><th class="num">δa<sub>i</sub></th><th class="num">δa<sub>c</sub></th><th class="num">δa<sub>o</sub></th><th>δz<sub>t</sub></th></tr>';
+  for(let t=1;t>=0;t--){const s=S[t],tc=Math.tanh(s.c);
+    const dO=dh*tc, dao=dO*s.o*(1-s.o), dc=dh*s.o*(1-tc*tc)+dcn*fn, dF=dc*s.cp, daf=dF*s.f*(1-s.f), dI=dc*s.ct, dai=dI*s.i*(1-s.i), dCt=dc*s.i, dac=dCt*(1-s.ct*s.ct);
+    const D={f:daf,i:dai,c:dac,o:dao}; for(const k in D){G[k][0]+=D[k]*s.z[0];G[k][1]+=D[k]*s.z[1]}
+    const dz=[0,1].map(j=>W.f[j]*daf+W.i[j]*dai+W.c[j]*dac+W.o[j]*dao);
+    b+='<tr><td>'+(t+1)+'</td>'+[dh,dO,dc,dF,dI,dCt,daf,dai,dac,dao].map(v=>'<td class="num">'+f6(v)+'</td>').join('')+'<td class="mono">['+f6(dz[0])+', '+f6(dz[1])+']</td></tr>';
+    dh=dz[0]; dcn=dc; fn=s.f;}
+  $('lstm-bwd').innerHTML=b+'</table>';
+  $('lstm-grad').innerHTML=['f','i','c','o'].map(k=>'∂L/∂W<sub>'+k+'</sub> = Σ<sub>t</sub> δa<sub>'+k+',t</sub> z<sub>t</sub>ᵀ = ['+f6(G[k][0])+', '+f6(G[k][1])+']').join('<br>')+'<br>∂L/∂W<sub>hy</sub> = δ<sub>y</sub> h₂ = '+M(dy.map(v=>v*h));
+})();
+
+// ===== Quiz =====
+const Q=[
+ ['Une image RGB de 64×64 pixels, dans un batch de 16, entre dans un CNN PyTorch avec la forme…',['(16, 64, 64, 3)','(16, 3, 64, 64)','(3, 16, 64, 64)'],1,'PyTorch : N × C × H × W. (16, 64, 64, 3) serait la convention Keras.'],
+ ['Image 4×4, filtre 3×3, padding 1, stride 1 : la feature map fait…',['2×2','4×4','6×6'],1,'(4 − 3 + 2·1)/1 + 1 = 4. Le padding préserve la taille.'],
+ ['Même image 4×4, même filtre, mais sans padding :',['2×2','3×3','4×4'],0,'(4 − 3 + 0)/1 + 1 = 2.'],
+ ['Un max-pooling 2×2 appliqué à une sortie 8×28×28 donne…',['4×14×14','8×14×14','8×28×28'],1,'Le pooling divise H et W, jamais le nombre de canaux.'],
+ ['Combien de paramètres dans Conv2d(3 → 16, kernel 3×3) ?',['160','448','432'],1,'16 × (3·3·3 + 1) = 16 × 28 = 448. Le filtre a la profondeur de l\'entrée.'],
+ ['Dans un autoencodeur, quelle est la cible de la perte ?',['l\'étiquette de classe y','l\'entrée x elle-même (ou sa version propre)','le code latent z'],1,'L(x, x̂) = Σ (x − x̂)² : on reconstruit l\'entrée.'],
+ ['Pour détecter une anomalie avec un AE, on l\'entraîne sur…',['des données normales uniquement','des anomalies uniquement','un mélange étiqueté'],0,'Une donnée anormale sera mal reconstruite : erreur élevée → détection.'],
+ ['Pour un RNN, dans l\'entrée (32, 50, 8), que représente 50 ?',['le nombre de caractéristiques n','la taille cachée K','le nombre de pas de temps T'],2,'(N, T, n) : 32 séquences, 50 instants, 8 caractéristiques par instant.'],
+ ['Quelle est la taille de W_hh ?',['K × n','K × K','M × K'],1,'W_hh transforme h_{t−1} (taille K) en vecteur de taille K.'],
+ ['En BPTT, pourquoi additionne-t-on les gradients de W_hh sur tous les instants ?',['pour normaliser la perte','parce que W_hh est partagé : il est utilisé à chaque pas','parce que la softmax l\'impose'],1,'Un poids utilisé T fois reçoit la somme de ses T contributions.'],
+ ['Quelle est la récurrence du gradient dans la BPTT du cours ?',['δ_{t−1} = W_hh (δ_t + h_t)','δ_{t−1} = W_hhᵀ (δ_t ⊙ (1 − h_t²))','δ_{t−1} = W_xhᵀ δ_t'],1,'On traverse tanh (dérivée 1 − h²), puis W_hh (en transposé, car on remonte).'],
+ ['Dans un LSTM, si la porte d\'oubli f_t ≈ 0 :',['la mémoire c_{t−1} est presque entièrement effacée','la sortie h_t vaut 0','la nouvelle entrée est ignorée'],0,'c_t = f_t ⊙ c_{t−1} + i_t ⊙ c̃_t : avec f ≈ 0, l\'ancienne mémoire disparaît.'],
+ ['Taille de W_f dans la forme compacte du LSTM ?',['K × n','K × (K + n)','4K × n'],1,'W_f multiplie z_t = [h_{t−1} ; x_t], de taille K + n.'],
+ ['Pourquoi le LSTM limite le vanishing gradient ?',['il n\'utilise pas de sigmoïde','sur la ligne de mémoire, δc_{t−1} = δc_t ⊙ f_t, sans multiplication par une matrice de poids','il a moins de paramètres'],1,'Le chemin additif de c laisse passer le gradient quand f ≈ 1.']
+];
+let answered=0,good=0;
+$('qbox').innerHTML=Q.map((q,k)=>'<div class="q" role="group" aria-labelledby="q'+k+'"><p id="q'+k+'">'+(k+1)+'. '+q[0]+'</p>'+q[1].map((o,j)=>'<label><input type="radio" name="q'+k+'" id="q'+k+'o'+j+'" value="'+j+'"> '+o+'</label>').join('')+'<div class="why" hidden></div></div>').join('');
+$('qbox').addEventListener('change',e=>{
+  const inp=e.target; if(inp.type!=='radio')return; const k=+inp.name.slice(1), q=Q[k], box=inp.closest('.q');
+  if(box.dataset.done)return; box.dataset.done='1'; answered++;
+  const ok=+inp.value===q[2]; if(ok)good++;
+  box.querySelectorAll('label').forEach((l,j)=>{if(j===q[2])l.classList.add('good');else if(j===+inp.value)l.classList.add('wrong');l.querySelector('input').disabled=true});
+  const w=box.querySelector('.why'); w.hidden=false; w.textContent=(ok?'Correct. ':'Non. ')+q[3];
+  $('qscore').textContent=good+' / '+answered;
+});
+
+// ===== Sommaire actif =====
+const links=[...document.querySelectorAll('#toc a')];
+const secs=links.map(a=>document.querySelector(a.getAttribute('href')));
+function spy(){let cur=0;const y=window.scrollY+140;secs.forEach((s,i)=>{if(s&&s.getBoundingClientRect().top+window.scrollY<=y)cur=i});links.forEach((a,i)=>a.classList.toggle('on',i===cur))}
+addEventListener('scroll',spy,{passive:true}); spy();
+})();
+</script>
+</body>
+</html>
